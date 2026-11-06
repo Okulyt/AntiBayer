@@ -494,9 +494,10 @@
             this.buttonConvertFolder.Name = "buttonConvertFolder";
             this.buttonConvertFolder.Size = new System.Drawing.Size(72, 44);
             this.buttonConvertFolder.TabIndex = 31;
-            this.buttonConvertFolder.Text = "convert folder";
+            this.buttonConvertFolder.Text = "convert series";
             this.buttonConvertFolder.Enabled = false;
             this.buttonConvertFolder.UseVisualStyleBackColor = true;
+            this.buttonConvertFolder.Click += new System.EventHandler(this.buttonConvertFolder_Click);
             // 
             // textBoxFilenamePrefix
             // 

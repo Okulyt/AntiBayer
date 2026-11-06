@@ -145,6 +145,7 @@ public partial class MainForm : Form
         });
 
         Text = AppTitle + " - " + Path.GetFileName(info.Path);
+        buttonConvertFolder.Enabled = true;
         ClearHighlights();
         ApplyRowStates();
         statusMessage = curvesNote ?? "Loaded " + Path.GetFileName(info.Path);
@@ -687,6 +688,14 @@ public partial class MainForm : Form
     {
         PlaceHistograms();
         Invalidate();
+    }
+
+    private void buttonConvertFolder_Click(object? sender, EventArgs e)
+    {
+        if (!Loaded) return;
+        using var dialog = new SeriesForm(source.Info.Path, set, textBoxFilenamePrefix.Text,
+            textBoxFilenameSuffix.Text, checkBoxSwapBytes.Checked);
+        dialog.ShowDialog(this);
     }
 
     private void buttonExit_Click(object? sender, EventArgs e) => Close();

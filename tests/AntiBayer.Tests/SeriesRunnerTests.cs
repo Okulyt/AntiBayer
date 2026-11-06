@@ -219,6 +219,36 @@ public class SeriesRunnerTests
     }
 
     [Fact]
+    public void Unerwartete_Ausnahme_einer_Datei_wird_berichtet_Lauf_geht_weiter()
+    {
+        string dir = TestData.TempDir();
+        string a = PreflightTests.MakeSer(dir, "a.ser"), b = PreflightTests.MakeSer(dir, "b.ser");
+        string o = Path.Combine(dir, "o");
+        int calls = 0;
+        var report = SeriesRunner.Run(Job(new[] { a, b }, o), new[] { a, b }, null, CancellationToken.None,
+            (src, tmp) => calls++ == 0
+                ? throw new System.Runtime.InteropServices.COMException("wic broke")
+                : ImageFiles.CreateSink(src, tmp));
+        Assert.Equal(new[] { b }, report.Completed);
+        Assert.Equal(a, Assert.Single(report.Failed).File);
+        Assert.False(report.StoppedDiskFull);
+        Assert.Empty(Leftovers(o));
+    }
+
+    [Fact]
+    public void Datentraeger_voll_in_InnerException_stoppt_Lauf()
+    {
+        string dir = TestData.TempDir();
+        var files = new[] { "a.ser", "b.ser" }.Select(n => PreflightTests.MakeSer(dir, n)).ToArray();
+        string o = Path.Combine(dir, "o");
+        var report = SeriesRunner.Run(Job(files, o), files, null, CancellationToken.None,
+            (src, tmp) => throw new System.Runtime.InteropServices.COMException("wrapped",
+                new IOException("disk full", unchecked((int)0x80070070))));
+        Assert.True(report.StoppedDiskFull);
+        Assert.Equal(files[1], Assert.Single(report.Skipped));
+    }
+
+    [Fact]
     public void Nicht_lesbare_Datei_wird_berichtet_Lauf_geht_weiter()
     {
         string dir = TestData.TempDir();

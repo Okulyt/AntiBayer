@@ -13,8 +13,13 @@ public static class SeriesRunner
         public DiskFullException(Exception inner) : base(inner.Message, inner) { }
     }
 
-    private static bool IsDiskFull(Exception e) =>
-        e is IOException io && ((io.HResult & 0xFFFF) is 112 /* ERROR_DISK_FULL */ or 39 /* ERROR_HANDLE_DISK_FULL */);
+    private static bool IsDiskFull(Exception? e)
+    {
+        for (; e != null; e = e.InnerException)
+            if (e is IOException io && ((io.HResult & 0xFFFF) is 112 /* ERROR_DISK_FULL */ or 39 /* ERROR_HANDLE_DISK_FULL */))
+                return true;
+        return false;
+    }
 
     /// <summary>
     /// Processes the files one after another. Each output is written to a temporary name and renamed when complete.
@@ -64,9 +69,9 @@ public static class SeriesRunner
                 failed.Add((file, "The disk is full: " + e.Message));
                 diskFull = true;
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or UnsupportedImageException
-                                          or InvalidOperationException or ArgumentException or NotSupportedException)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
+                // Any other per-file failure (e.g. a COMException from the imaging codec) is reported; the run goes on.
                 failed.Add((file, e.Message));
             }
             finally
