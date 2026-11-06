@@ -19,4 +19,20 @@ public static class PreviewGeometry
         int y = Math.Clamp(centerY - h / 2, 0, imageHeight - h) & ~1;
         return new PixelRect(x, y, w, h);
     }
+
+    /// <summary>
+    /// Image pixel under a click into a box that shows the image zoomed, centred and with kept proportions
+    /// (PictureBoxSizeMode.Zoom); null when the click lies beside the drawn image.
+    /// </summary>
+    public static (int X, int Y)? ZoomedClickToPixel(int clickX, int clickY, int boxWidth, int boxHeight,
+        int imageWidth, int imageHeight)
+    {
+        if (boxWidth <= 0 || boxHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) return null;
+        double scale = Math.Min((double)boxWidth / imageWidth, (double)boxHeight / imageHeight);
+        int drawnWidth = (int)(imageWidth * scale), drawnHeight = (int)(imageHeight * scale);
+        int left = (boxWidth - drawnWidth) / 2, top = (boxHeight - drawnHeight) / 2;
+        int dx = clickX - left, dy = clickY - top;
+        if (dx < 0 || dy < 0 || dx >= drawnWidth || dy >= drawnHeight) return null;
+        return (Math.Min((int)(dx / scale), imageWidth - 1), Math.Min((int)(dy / scale), imageHeight - 1));
+    }
 }

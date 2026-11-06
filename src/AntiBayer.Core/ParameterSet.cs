@@ -59,6 +59,8 @@ public sealed class ParameterSet
 
     public void ClearPreview() => _preview.Clear();
 
+    public CurvePoint? PreviewPoint(BayerFilter f) => _preview.TryGetValue(f, out var q) ? q : null;
+
     public bool HasConfirmedPoints => _confirmed.Values.Any(d => d.Count > 0);
 
     /// <summary>Keeps curves within the four Bayer patterns; to and from None they are cleared.</summary>

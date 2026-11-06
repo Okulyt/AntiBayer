@@ -92,4 +92,16 @@ public class ParameterSetTests
         var s = new ParameterSet(setPattern, setDepth);
         Assert.Equal(expected, s.CompatibleWith(depth, pattern));
     }
+
+    [Fact]
+    public void Vorschaupunkt_ist_abfragbar_bis_er_geloescht_wird()
+    {
+        var set = new ParameterSet(BayerPattern.RGGB, 16);
+        Assert.Null(set.PreviewPoint(BayerFilter.Red));
+        set.SetPreview(BayerFilter.Red, new CurvePoint(100, 120));
+        Assert.Equal(new CurvePoint(100, 120), set.PreviewPoint(BayerFilter.Red));
+        Assert.Null(set.PreviewPoint(BayerFilter.Blue));
+        set.ClearPreview();
+        Assert.Null(set.PreviewPoint(BayerFilter.Red));
+    }
 }

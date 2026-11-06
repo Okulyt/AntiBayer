@@ -37,7 +37,7 @@
             this.textBoxStatus = new System.Windows.Forms.TextBox();
             this.checkBoxOnlyRGBHistogram = new System.Windows.Forms.CheckBox();
             this.radioButtonBayerRGGB = new System.Windows.Forms.RadioButton();
-            this.radioButtonBayerGRGB = new System.Windows.Forms.RadioButton();
+            this.radioButtonBayerGRBG = new System.Windows.Forms.RadioButton();
             this.radioButtonbayerNone = new System.Windows.Forms.RadioButton();
             this.labelMultiply = new System.Windows.Forms.Label();
             this.labelShift = new System.Windows.Forms.Label();
@@ -84,6 +84,10 @@
             this.buttonDeleteStrongPoints = new System.Windows.Forms.Button();
             this.buttonSaveValues = new System.Windows.Forms.Button();
             this.buttonLoadValues = new System.Windows.Forms.Button();
+            this.labelFrame = new System.Windows.Forms.Label();
+            this.trackBarFrame = new System.Windows.Forms.TrackBar();
+            this.numericUpDownFrame = new System.Windows.Forms.NumericUpDown();
+            this.checkBoxSwapBytes = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this._pbWorkingImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._pbHistoRGB)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._pbHistoR)).BeginInit();
@@ -98,6 +102,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.textBoxNewValueBlue)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.textBoxOriginalValueBlue)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._pbPreview)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.trackBarFrame)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownFrame)).BeginInit();
             this.SuspendLayout();
             // 
             // _pbWorkingImage
@@ -108,8 +114,7 @@
             this._pbWorkingImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this._pbWorkingImage.TabIndex = 1;
             this._pbWorkingImage.TabStop = false;
-            this._pbWorkingImage.Click += new System.EventHandler(this._pbWorkingImage_Click);
-            this._pbWorkingImage.MouseDown += new System.Windows.Forms.MouseEventHandler(this._pbWorkingImage_MouseDown);
+            this._pbWorkingImage.MouseClick += new System.Windows.Forms.MouseEventHandler(this._pbWorkingImage_MouseClick);
             // 
             // _pbHistoRGB
             // 
@@ -199,16 +204,16 @@
             this.radioButtonBayerRGGB.UseVisualStyleBackColor = true;
             this.radioButtonBayerRGGB.CheckedChanged += new System.EventHandler(this.RadioButtonBayer_CheckedChanged);
             // 
-            // radioButtonBayerGRGB
+            // radioButtonBayerGRBG
             // 
-            this.radioButtonBayerGRGB.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.radioButtonBayerGRGB.Location = new System.Drawing.Point(900, 83);
-            this.radioButtonBayerGRGB.Name = "radioButtonBayerGRGB";
-            this.radioButtonBayerGRGB.Size = new System.Drawing.Size(43, 33);
-            this.radioButtonBayerGRGB.TabIndex = 10;
-            this.radioButtonBayerGRGB.Text = "GRGB";
-            this.radioButtonBayerGRGB.UseVisualStyleBackColor = true;
-            this.radioButtonBayerGRGB.CheckedChanged += new System.EventHandler(this.RadioButtonBayer_CheckedChanged);
+            this.radioButtonBayerGRBG.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.radioButtonBayerGRBG.Location = new System.Drawing.Point(900, 83);
+            this.radioButtonBayerGRBG.Name = "radioButtonBayerGRBG";
+            this.radioButtonBayerGRBG.Size = new System.Drawing.Size(43, 33);
+            this.radioButtonBayerGRBG.TabIndex = 10;
+            this.radioButtonBayerGRBG.Text = "GRBG";
+            this.radioButtonBayerGRBG.UseVisualStyleBackColor = true;
+            this.radioButtonBayerGRBG.CheckedChanged += new System.EventHandler(this.RadioButtonBayer_CheckedChanged);
             // 
             // radioButtonbayerNone
             // 
@@ -286,14 +291,14 @@
             // textBoxOriginalValueRed
             // 
             this.textBoxOriginalValueRed.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxOriginalValueRed.Location = new System.Drawing.Point(887, 186);
+            this.textBoxOriginalValueRed.Location = new System.Drawing.Point(886, 186);
             this.textBoxOriginalValueRed.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxOriginalValueRed.Name = "textBoxOriginalValueRed";
-            this.textBoxOriginalValueRed.Size = new System.Drawing.Size(43, 20);
+            this.textBoxOriginalValueRed.Size = new System.Drawing.Size(50, 20);
             this.textBoxOriginalValueRed.TabIndex = 18;
             this.textBoxOriginalValueRed.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxOriginalValueRed.ValueChanged += new System.EventHandler(this.HistogramValueChanged);
@@ -301,14 +306,14 @@
             // textBoxNewValueRed
             // 
             this.textBoxNewValueRed.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxNewValueRed.Location = new System.Drawing.Point(939, 186);
+            this.textBoxNewValueRed.Location = new System.Drawing.Point(938, 186);
             this.textBoxNewValueRed.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxNewValueRed.Name = "textBoxNewValueRed";
-            this.textBoxNewValueRed.Size = new System.Drawing.Size(47, 20);
+            this.textBoxNewValueRed.Size = new System.Drawing.Size(52, 20);
             this.textBoxNewValueRed.TabIndex = 19;
             this.textBoxNewValueRed.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxNewValueRed.Value = new decimal(new int[] {
@@ -321,14 +326,14 @@
             // textBoxNewValueGreen1
             // 
             this.textBoxNewValueGreen1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxNewValueGreen1.Location = new System.Drawing.Point(939, 211);
+            this.textBoxNewValueGreen1.Location = new System.Drawing.Point(938, 211);
             this.textBoxNewValueGreen1.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxNewValueGreen1.Name = "textBoxNewValueGreen1";
-            this.textBoxNewValueGreen1.Size = new System.Drawing.Size(47, 20);
+            this.textBoxNewValueGreen1.Size = new System.Drawing.Size(52, 20);
             this.textBoxNewValueGreen1.TabIndex = 21;
             this.textBoxNewValueGreen1.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxNewValueGreen1.Value = new decimal(new int[] {
@@ -341,14 +346,14 @@
             // textBoxOriginalValueGreen1
             // 
             this.textBoxOriginalValueGreen1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxOriginalValueGreen1.Location = new System.Drawing.Point(887, 211);
+            this.textBoxOriginalValueGreen1.Location = new System.Drawing.Point(886, 211);
             this.textBoxOriginalValueGreen1.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxOriginalValueGreen1.Name = "textBoxOriginalValueGreen1";
-            this.textBoxOriginalValueGreen1.Size = new System.Drawing.Size(43, 20);
+            this.textBoxOriginalValueGreen1.Size = new System.Drawing.Size(50, 20);
             this.textBoxOriginalValueGreen1.TabIndex = 20;
             this.textBoxOriginalValueGreen1.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxOriginalValueGreen1.ValueChanged += new System.EventHandler(this.HistogramValueChanged);
@@ -356,14 +361,14 @@
             // textBoxNewValueGreen2
             // 
             this.textBoxNewValueGreen2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxNewValueGreen2.Location = new System.Drawing.Point(939, 237);
+            this.textBoxNewValueGreen2.Location = new System.Drawing.Point(938, 237);
             this.textBoxNewValueGreen2.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxNewValueGreen2.Name = "textBoxNewValueGreen2";
-            this.textBoxNewValueGreen2.Size = new System.Drawing.Size(47, 20);
+            this.textBoxNewValueGreen2.Size = new System.Drawing.Size(52, 20);
             this.textBoxNewValueGreen2.TabIndex = 23;
             this.textBoxNewValueGreen2.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxNewValueGreen2.Value = new decimal(new int[] {
@@ -376,14 +381,14 @@
             // textBoxOriginalValueGreen2
             // 
             this.textBoxOriginalValueGreen2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxOriginalValueGreen2.Location = new System.Drawing.Point(887, 237);
+            this.textBoxOriginalValueGreen2.Location = new System.Drawing.Point(886, 237);
             this.textBoxOriginalValueGreen2.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxOriginalValueGreen2.Name = "textBoxOriginalValueGreen2";
-            this.textBoxOriginalValueGreen2.Size = new System.Drawing.Size(43, 20);
+            this.textBoxOriginalValueGreen2.Size = new System.Drawing.Size(50, 20);
             this.textBoxOriginalValueGreen2.TabIndex = 22;
             this.textBoxOriginalValueGreen2.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxOriginalValueGreen2.ValueChanged += new System.EventHandler(this.HistogramValueChanged);
@@ -391,14 +396,14 @@
             // textBoxNewValueBlue
             // 
             this.textBoxNewValueBlue.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxNewValueBlue.Location = new System.Drawing.Point(939, 263);
+            this.textBoxNewValueBlue.Location = new System.Drawing.Point(938, 263);
             this.textBoxNewValueBlue.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxNewValueBlue.Name = "textBoxNewValueBlue";
-            this.textBoxNewValueBlue.Size = new System.Drawing.Size(47, 20);
+            this.textBoxNewValueBlue.Size = new System.Drawing.Size(52, 20);
             this.textBoxNewValueBlue.TabIndex = 25;
             this.textBoxNewValueBlue.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxNewValueBlue.Value = new decimal(new int[] {
@@ -411,14 +416,14 @@
             // textBoxOriginalValueBlue
             // 
             this.textBoxOriginalValueBlue.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxOriginalValueBlue.Location = new System.Drawing.Point(887, 263);
+            this.textBoxOriginalValueBlue.Location = new System.Drawing.Point(886, 263);
             this.textBoxOriginalValueBlue.Maximum = new decimal(new int[] {
             65535,
             0,
             0,
             0});
             this.textBoxOriginalValueBlue.Name = "textBoxOriginalValueBlue";
-            this.textBoxOriginalValueBlue.Size = new System.Drawing.Size(43, 20);
+            this.textBoxOriginalValueBlue.Size = new System.Drawing.Size(50, 20);
             this.textBoxOriginalValueBlue.TabIndex = 24;
             this.textBoxOriginalValueBlue.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.textBoxOriginalValueBlue.ValueChanged += new System.EventHandler(this.HistogramValueChanged);
@@ -432,8 +437,8 @@
             this.buttonMarkR.TabIndex = 26;
             this.buttonMarkR.Text = "R";
             this.buttonMarkR.UseVisualStyleBackColor = true;
-            this.buttonMarkR.MouseDown += new System.Windows.Forms.MouseEventHandler(this.BayerSelectoButton_MouseDown);
-            this.buttonMarkR.MouseUp += new System.Windows.Forms.MouseEventHandler(this.BayerSelectButton_MouseUp);
+            this.buttonMarkR.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseDown);
+            this.buttonMarkR.MouseUp += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseUp);
             // 
             // buttonMarkG1
             // 
@@ -444,8 +449,8 @@
             this.buttonMarkG1.TabIndex = 27;
             this.buttonMarkG1.Text = "G1";
             this.buttonMarkG1.UseVisualStyleBackColor = true;
-            this.buttonMarkG1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.BayerSelectoButton_MouseDown);
-            this.buttonMarkG1.MouseUp += new System.Windows.Forms.MouseEventHandler(this.BayerSelectButton_MouseUp);
+            this.buttonMarkG1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseDown);
+            this.buttonMarkG1.MouseUp += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseUp);
             // 
             // buttonMarkG2
             // 
@@ -456,8 +461,8 @@
             this.buttonMarkG2.TabIndex = 28;
             this.buttonMarkG2.Text = "G2";
             this.buttonMarkG2.UseVisualStyleBackColor = true;
-            this.buttonMarkG2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.BayerSelectoButton_MouseDown);
-            this.buttonMarkG2.MouseUp += new System.Windows.Forms.MouseEventHandler(this.BayerSelectButton_MouseUp);
+            this.buttonMarkG2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseDown);
+            this.buttonMarkG2.MouseUp += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseUp);
             // 
             // buttonMarkB
             // 
@@ -468,8 +473,8 @@
             this.buttonMarkB.TabIndex = 29;
             this.buttonMarkB.Text = "B";
             this.buttonMarkB.UseVisualStyleBackColor = true;
-            this.buttonMarkB.MouseDown += new System.Windows.Forms.MouseEventHandler(this.BayerSelectoButton_MouseDown);
-            this.buttonMarkB.MouseUp += new System.Windows.Forms.MouseEventHandler(this.BayerSelectButton_MouseUp);
+            this.buttonMarkB.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseDown);
+            this.buttonMarkB.MouseUp += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseUp);
             // 
             // buttonSave
             // 
@@ -479,8 +484,8 @@
             this.buttonSave.Size = new System.Drawing.Size(64, 44);
             this.buttonSave.TabIndex = 30;
             this.buttonSave.Text = "save image";
+            this.buttonSave.Enabled = false;
             this.buttonSave.UseVisualStyleBackColor = true;
-            this.buttonSave.Click += new System.EventHandler(this.buttonSave_Click);
             // 
             // buttonConvertFolder
             // 
@@ -490,8 +495,8 @@
             this.buttonConvertFolder.Size = new System.Drawing.Size(72, 44);
             this.buttonConvertFolder.TabIndex = 31;
             this.buttonConvertFolder.Text = "convert folder";
+            this.buttonConvertFolder.Enabled = false;
             this.buttonConvertFolder.UseVisualStyleBackColor = true;
-            this.buttonConvertFolder.Click += new System.EventHandler(this.buttonConvertFolder_Click);
             // 
             // textBoxFilenamePrefix
             // 
@@ -572,18 +577,17 @@
             this.buttonViewSource.TabIndex = 39;
             this.buttonViewSource.Text = "Source";
             this.buttonViewSource.UseVisualStyleBackColor = true;
-            this.buttonViewSource.MouseDown += new System.Windows.Forms.MouseEventHandler(this.BayerSelectoButton_MouseDown);
-            this.buttonViewSource.MouseUp += new System.Windows.Forms.MouseEventHandler(this.BayerSelectButton_MouseUp);
+            this.buttonViewSource.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseDown);
+            this.buttonViewSource.MouseUp += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseUp);
             // 
             // textBoxImageInfo
             // 
-            this.textBoxImageInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+            this.textBoxImageInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.textBoxImageInfo.Location = new System.Drawing.Point(12, 505);
             this.textBoxImageInfo.Multiline = true;
             this.textBoxImageInfo.Name = "textBoxImageInfo";
             this.textBoxImageInfo.ReadOnly = true;
+            this.textBoxImageInfo.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textBoxImageInfo.Size = new System.Drawing.Size(548, 160);
             this.textBoxImageInfo.TabIndex = 40;
             // 
@@ -704,11 +708,11 @@
             this._pbPreview.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
             this._pbPreview.Location = new System.Drawing.Point(12, 12);
             this._pbPreview.Name = "_pbPreview";
-            this._pbPreview.Size = new System.Drawing.Size(548, 487);
+            this._pbPreview.Size = new System.Drawing.Size(548, 458);
             this._pbPreview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this._pbPreview.TabIndex = 0;
             this._pbPreview.TabStop = false;
-            this._pbPreview.Click += new System.EventHandler(this._pbPreview_Click);
+            this._pbPreview.MouseClick += new System.Windows.Forms.MouseEventHandler(this._pbPreview_MouseClick);
             // 
             // buttonDeleteStrongPoints
             // 
@@ -729,8 +733,8 @@
             this.buttonSaveValues.Size = new System.Drawing.Size(143, 23);
             this.buttonSaveValues.TabIndex = 49;
             this.buttonSaveValues.Text = "save values";
+            this.buttonSaveValues.Enabled = false;
             this.buttonSaveValues.UseVisualStyleBackColor = true;
-            this.buttonSaveValues.Click += new System.EventHandler(this.buttonSaveValues_Click);
             // 
             // buttonLoadValues
             // 
@@ -740,8 +744,73 @@
             this.buttonLoadValues.Size = new System.Drawing.Size(143, 23);
             this.buttonLoadValues.TabIndex = 50;
             this.buttonLoadValues.Text = "load values";
+            this.buttonLoadValues.Enabled = false;
             this.buttonLoadValues.UseVisualStyleBackColor = true;
-            this.buttonLoadValues.Click += new System.EventHandler(this.buttonLoadValues_Click);
+            // 
+            // labelFrame
+            // 
+            this.labelFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.labelFrame.AutoSize = true;
+            this.labelFrame.Location = new System.Drawing.Point(12, 480);
+            this.labelFrame.Name = "labelFrame";
+            this.labelFrame.Size = new System.Drawing.Size(36, 13);
+            this.labelFrame.TabIndex = 51;
+            this.labelFrame.Text = "Frame";
+            this.labelFrame.Visible = false;
+            // 
+            // trackBarFrame
+            // 
+            this.trackBarFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.trackBarFrame.AutoSize = false;
+            this.trackBarFrame.Location = new System.Drawing.Point(50, 474);
+            this.trackBarFrame.Minimum = 1;
+            this.trackBarFrame.Maximum = 1;
+            this.trackBarFrame.Name = "trackBarFrame";
+            this.trackBarFrame.Size = new System.Drawing.Size(330, 26);
+            this.trackBarFrame.TabIndex = 52;
+            this.trackBarFrame.TickStyle = System.Windows.Forms.TickStyle.None;
+            this.trackBarFrame.Value = 1;
+            this.trackBarFrame.Visible = false;
+            this.trackBarFrame.ValueChanged += new System.EventHandler(this.trackBarFrame_ValueChanged);
+            // 
+            // numericUpDownFrame
+            // 
+            this.numericUpDownFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.numericUpDownFrame.Location = new System.Drawing.Point(385, 477);
+            this.numericUpDownFrame.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownFrame.Maximum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownFrame.Name = "numericUpDownFrame";
+            this.numericUpDownFrame.Size = new System.Drawing.Size(70, 20);
+            this.numericUpDownFrame.TabIndex = 53;
+            this.numericUpDownFrame.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.numericUpDownFrame.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownFrame.Visible = false;
+            this.numericUpDownFrame.ValueChanged += new System.EventHandler(this.numericUpDownFrame_ValueChanged);
+            // 
+            // checkBoxSwapBytes
+            // 
+            this.checkBoxSwapBytes.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.checkBoxSwapBytes.AutoSize = true;
+            this.checkBoxSwapBytes.Location = new System.Drawing.Point(465, 479);
+            this.checkBoxSwapBytes.Name = "checkBoxSwapBytes";
+            this.checkBoxSwapBytes.Size = new System.Drawing.Size(80, 17);
+            this.checkBoxSwapBytes.TabIndex = 54;
+            this.checkBoxSwapBytes.Text = "Swap bytes";
+            this.checkBoxSwapBytes.UseVisualStyleBackColor = true;
+            this.checkBoxSwapBytes.Visible = false;
+            this.checkBoxSwapBytes.CheckedChanged += new System.EventHandler(this.checkBoxSwapBytes_CheckedChanged);
             // 
             // MainForm
             // 
@@ -749,6 +818,10 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1104, 691);
+            this.Controls.Add(this.checkBoxSwapBytes);
+            this.Controls.Add(this.numericUpDownFrame);
+            this.Controls.Add(this.trackBarFrame);
+            this.Controls.Add(this.labelFrame);
             this.Controls.Add(this.buttonLoadValues);
             this.Controls.Add(this.buttonSaveValues);
             this.Controls.Add(this.buttonDeleteStrongPoints);
@@ -789,7 +862,7 @@
             this.Controls.Add(this.labelShift);
             this.Controls.Add(this.labelMultiply);
             this.Controls.Add(this.radioButtonbayerNone);
-            this.Controls.Add(this.radioButtonBayerGRGB);
+            this.Controls.Add(this.radioButtonBayerGRBG);
             this.Controls.Add(this.radioButtonBayerRGGB);
             this.Controls.Add(this.checkBoxOnlyRGBHistogram);
             this.Controls.Add(this.textBoxStatus);
@@ -802,10 +875,9 @@
             this.Controls.Add(this._pbPreview);
             this.MinimumSize = new System.Drawing.Size(1120, 730);
             this.Name = "MainForm";
-            this.Text = "Bayer Adjust";
-            this.DragDrop += new System.Windows.Forms.DragEventHandler(this.pictureBoxImagePreview_DragDrop);
-            this.DragEnter += new System.Windows.Forms.DragEventHandler(this.pictureBoxImagePreview_DragEnter);
-            this.DragOver += new System.Windows.Forms.DragEventHandler(this._pbPreview_DragOver);
+            this.Text = "AntiBayer";
+            this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
+            this.DragEnter += new System.Windows.Forms.DragEventHandler(this.MainForm_DragEnter);
             this.Resize += new System.EventHandler(this.Form1_Resize);
             ((System.ComponentModel.ISupportInitialize)(this._pbWorkingImage)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this._pbHistoRGB)).EndInit();
@@ -821,6 +893,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.textBoxNewValueBlue)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.textBoxOriginalValueBlue)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this._pbPreview)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.trackBarFrame)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownFrame)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -838,7 +912,7 @@
         private System.Windows.Forms.TextBox textBoxStatus;
         private System.Windows.Forms.CheckBox checkBoxOnlyRGBHistogram;
         private System.Windows.Forms.RadioButton radioButtonBayerRGGB;
-        private System.Windows.Forms.RadioButton radioButtonBayerGRGB;
+        private System.Windows.Forms.RadioButton radioButtonBayerGRBG;
         private System.Windows.Forms.RadioButton radioButtonbayerNone;
         private System.Windows.Forms.Label labelMultiply;
         private System.Windows.Forms.Label labelShift;
@@ -884,6 +958,10 @@
         private System.Windows.Forms.Button buttonDeleteStrongPoints;
         private System.Windows.Forms.Button buttonSaveValues;
         private System.Windows.Forms.Button buttonLoadValues;
+        private System.Windows.Forms.Label labelFrame;
+        private System.Windows.Forms.TrackBar trackBarFrame;
+        private System.Windows.Forms.NumericUpDown numericUpDownFrame;
+        private System.Windows.Forms.CheckBox checkBoxSwapBytes;
     }
 }
 

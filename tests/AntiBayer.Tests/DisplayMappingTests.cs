@@ -25,4 +25,12 @@ public class DisplayMappingTests
         DisplayMapping.To8Bit(frame);
         Assert.Equal(copy, frame);
     }
+
+    [Fact]
+    public void Anzeige_mit_festem_Massstab_klemmt_auf_255()
+    {
+        var o = DisplayMapping.To8Bit(new ushort[] { 0, 50, 100, 200 }, 100);
+        Assert.Equal(new byte[] { 0, 128, 255, 255 }, o);
+        Assert.Equal(new byte[] { 0, 0 }, DisplayMapping.To8Bit(new ushort[] { 0, 7 }, 0));
+    }
 }

@@ -39,4 +39,30 @@ public class PreviewGeometryTests
         var r = PreviewGeometry.Compute(100, 80, 40, 20, 640, 480);
         Assert.Equal(new PixelRect(80, 70, 40, 20), r);
     }
+
+    [Fact]
+    public void Klick_im_gezoomten_Bild_trifft_das_Pixel()
+    {
+        // Box 100x100, image 10x10: scale 10, no margins.
+        Assert.Equal((0, 0), PreviewGeometry.ZoomedClickToPixel(0, 0, 100, 100, 10, 10));
+        Assert.Equal((9, 9), PreviewGeometry.ZoomedClickToPixel(99, 99, 100, 100, 10, 10));
+        Assert.Equal((3, 7), PreviewGeometry.ZoomedClickToPixel(35, 79, 100, 100, 10, 10));
+    }
+
+    [Fact]
+    public void Klick_auf_den_Rand_neben_dem_gezoomten_Bild_trifft_nichts()
+    {
+        // Box 100x60, image 10x10: scale 6, drawn 60x60 centred at x=20..79.
+        Assert.Null(PreviewGeometry.ZoomedClickToPixel(19, 30, 100, 60, 10, 10));
+        Assert.Null(PreviewGeometry.ZoomedClickToPixel(80, 30, 100, 60, 10, 10));
+        Assert.Equal((0, 0), PreviewGeometry.ZoomedClickToPixel(20, 0, 100, 60, 10, 10));
+        Assert.Equal((9, 9), PreviewGeometry.ZoomedClickToPixel(79, 59, 100, 60, 10, 10));
+        Assert.Null(PreviewGeometry.ZoomedClickToPixel(-1, 0, 100, 60, 10, 10));
+    }
+
+    [Fact]
+    public void Klick_bei_leerer_Box_trifft_nichts()
+    {
+        Assert.Null(PreviewGeometry.ZoomedClickToPixel(0, 0, 0, 0, 10, 10));
+    }
 }

@@ -5,8 +5,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>AntiBayer</AssemblyName>
     <RootNamespace>AntiBayer</RootNamespace>
-    <!-- Legacy code; becomes enable when Task 10 replaces it. -->
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <AssemblyTitle>AntiBayer</AssemblyTitle>
