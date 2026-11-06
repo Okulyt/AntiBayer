@@ -1,4 +1,4 @@
-﻿using AntiBeyer;
+﻿using AntiBayer;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -17,9 +17,8 @@ using System.Windows.Forms.VisualStyles;
 using System.Runtime.Serialization;
 using System.Xml;
 using System.Xml.Serialization;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
-namespace Antibayer
+namespace AntiBayer
 {
 
     public partial class MainForm : Form
@@ -56,6 +55,7 @@ namespace Antibayer
         public Rectangle PreviewRectangle { get; private set; }
         public Bitmap PreviewImage { get; private set; }
         public Bitmap ProcessedPreview { get; private set; }
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public Configuration Configuration { get; set; } = new Configuration();
         public Varianzen[] Variances { get; private set; }
 

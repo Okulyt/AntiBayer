@@ -1,4 +1,4 @@
-﻿using Antibayer;
+﻿using AntiBayer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -7,10 +7,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms.VisualStyles;
-using static System.Net.Mime.MediaTypeNames;
 using Image = System.Drawing.Image;
 
-namespace AntiBeyer.Interfaces
+namespace AntiBayer
 {
     internal class IImagingdotNet : IImaging
     {

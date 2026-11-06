@@ -1,4 +1,4 @@
-﻿using Antibayer;
+﻿using AntiBayer;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -7,7 +7,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AntiBeyer
+namespace AntiBayer
 {
     public enum PixelFormat { Invalid, Greyscale8bpp, Color8bpp, Greyscale16bpp, Color16bpp }
 

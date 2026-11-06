@@ -6,13 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Antibayer
+namespace AntiBayer
 {
     /// <summary>
     /// Inherits from PictureBox; adds Interpolation Mode Setting
     /// </summary>
     public class PictureBoxWithInterpolationMode : PictureBox
     {
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public InterpolationMode InterpolationMode { get; set; }
 
         protected override void OnPaint(PaintEventArgs paintEventArgs)

@@ -1,4 +1,4 @@
-﻿using Antibayer;
+﻿using AntiBayer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AntiBeyer
+namespace AntiBayer
 {
     [DataContractAttribute]
     public class ConversionParameters

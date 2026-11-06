@@ -1,4 +1,4 @@
-﻿namespace Antibayer
+﻿namespace AntiBayer
 {
     partial class MainForm
     {
@@ -80,7 +80,7 @@
             this.Original = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.Target = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.Preview = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this._pbPreview = new Antibayer.PictureBoxWithInterpolationMode();
+            this._pbPreview = new AntiBayer.PictureBoxWithInterpolationMode();
             this.buttonDeleteStrongPoints = new System.Windows.Forms.Button();
             this.buttonSaveValues = new System.Windows.Forms.Button();
             this.buttonLoadValues = new System.Windows.Forms.Button();

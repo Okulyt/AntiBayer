@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AntiBeyer
+namespace AntiBayer
 {
     internal class DebugTools
     {

@@ -7,11 +7,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Windows.Forms.AxHost;
-using AntiBeyer;
-using AntiBeyer.Interfaces;
+using AntiBayer;
 
-namespace Antibayer
+namespace AntiBayer
 {
     public class ImageFunctions
     {

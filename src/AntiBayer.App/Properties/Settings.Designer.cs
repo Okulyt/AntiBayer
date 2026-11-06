@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Antibayer.Properties
+namespace AntiBayer.Properties
 {
 
 

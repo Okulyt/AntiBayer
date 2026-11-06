@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Antibayer
+namespace AntiBayer
 {
     internal static class Program
     {
