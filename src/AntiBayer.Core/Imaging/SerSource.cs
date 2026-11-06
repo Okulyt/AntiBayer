@@ -56,7 +56,7 @@ public sealed class SerSource : IFrameSource
 
             Info = new ImageInfo(path, ImageFormat.Ser, Header.Width, Header.Height, bitDepth, frames,
                 WhiteLevel.Detect(first, bitDepth, Header.PixelDepth),
-                Bayer.FromSerColorId(Header.ColorId), new CaptureInfo(), warning);
+                Bayer.FromSerColorId(Header.ColorId), CaptureInfoReader.ForFile(path, Header), warning);
         }
         catch
         {
