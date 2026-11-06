@@ -59,7 +59,7 @@ public sealed class WicSink : IFrameSink
             if (f == PixelFormats.Indexed8)
             {
                 // A non-identity grey palette cannot hold arbitrary corrected values; write plain grey then.
-                if (IsIdentityPalette(_source.Palette)) palette = _source.Palette;
+                if (IsIdentityPalette(_source.PaletteColors)) palette = new BitmapPalette(_source.PaletteColors);
                 else f = PixelFormats.Gray8;
             }
         }
@@ -80,10 +80,10 @@ public sealed class WicSink : IFrameSink
         _written = true;
     }
 
-    private static bool IsIdentityPalette(BitmapPalette? p)
+    private static bool IsIdentityPalette(Color[]? p)
     {
-        if (p == null || p.Colors.Count != 256) return false;
-        for (int i = 0; i < 256; i++) if (p.Colors[i].R != i) return false;
+        if (p == null || p.Length != 256) return false;
+        for (int i = 0; i < 256; i++) if (p[i].R != i) return false;
         return true;
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -17,7 +18,7 @@ public sealed class WicSource : IFrameSource
     public ImageInfo Info { get; }
 
     internal PixelFormat PixelFormat { get; }
-    internal BitmapPalette? Palette { get; }
+    internal Color[]? PaletteColors { get; }
 
     public WicSource(string path)
     {
@@ -40,7 +41,8 @@ public sealed class WicSource : IFrameSource
 
         int w = frame.PixelWidth, h = frame.PixelHeight;
         PixelFormat = frame.Format;
-        Palette = frame.Palette;
+        // BitmapPalette is a thread-affine WPF object; keep plain colours so a series thread can use them.
+        PaletteColors = frame.Palette?.Colors.ToArray();
         _pixels = new ushort[w * h];
         int bitDepth = Extract(frame, _pixels);
 

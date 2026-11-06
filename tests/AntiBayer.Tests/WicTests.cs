@@ -248,6 +248,31 @@ public class WicTests
     }
 
     [Fact]
+    public void Indexed8_Sink_laesst_sich_auf_anderem_Thread_erzeugen_und_schreiben()
+    {
+        string dir = TestData.TempDir();
+        string src = Path.Combine(dir, "in.png"), dst = Path.Combine(dir, "out.png");
+        var pal = new BitmapPalette(Enumerable.Range(0, 256).Select(i => Color.FromRgb((byte)i, (byte)i, (byte)i)).ToList());
+        Save(src, BitmapSource.Create(2, 2, 96, 96, PixelFormats.Indexed8, pal, new byte[] { 0, 10, 20, 255 }, 2));
+        using var s = ImageFiles.Open(src);
+        Exception? error = null;
+        var t = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                using var sink = ImageFiles.CreateSink(s, dst);
+                sink.WriteFrame(new ushort[] { 1, 2, 3, 4 });
+                sink.Complete();
+            }
+            catch (Exception e) { error = e; }
+        });
+        t.Start();
+        t.Join();
+        Assert.Null(error);
+        Assert.True(File.Exists(dst));
+    }
+
+    [Fact]
     public void Ausgabe_ueber_die_Quelle_wird_abgelehnt()
     {
         string p = Path.Combine(TestData.TempDir(), "o.png");
