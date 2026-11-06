@@ -15,6 +15,8 @@ public sealed class ParameterSet
     public BayerPattern Pattern { get; private set; }
     public int BitDepth { get; }
     public CaptureInfo Capture { get; set; } = new CaptureInfo();
+    /// <summary>False for legacy files that did not store the Bayer pattern; Pattern is then only a placeholder.</summary>
+    public bool PatternKnown { get; set; } = true;
 
     public ParameterSet(BayerPattern pattern, int bitDepth)
     {
@@ -93,7 +95,7 @@ public sealed class ParameterSet
     {
         if (bitDepth != BitDepth) return SetCompatibility.BitDepthMismatch;
         if ((pattern == BayerPattern.None) != (Pattern == BayerPattern.None)) return SetCompatibility.CurveCountMismatch;
-        if (pattern != Pattern) return SetCompatibility.PatternDiffers;
+        if (pattern != Pattern && PatternKnown) return SetCompatibility.PatternDiffers;
         return SetCompatibility.Ok;
     }
 }
