@@ -1,7 +1,7 @@
 # Handoff: Zeilen- und Spaltenrauschen prüfen
 
 Stand: 2026-11-06. Erst angehen, wenn die Reparatur fertig ist
-(`docs/superpowers/specs/2026-11-06-antibayer-reparatur-design.md`). Das Tool muss dann
+(`docs/2026-11-06-antibayer-reparatur-design.md`). Das Tool muss dann
 16-Bit-SER-Dateien korrekt lesen; darauf baut diese Prüfung auf.
 
 ## Frage des Nutzers

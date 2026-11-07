@@ -57,7 +57,7 @@ Erfolgskriterium.
 
 - Automatische Bestimmung der Kurven (der manuelle Ablauf bleibt).
 - Erkennung oder Korrektur von Zeilen-/Spaltenrauschen: siehe
-  `docs/superpowers/handoffs/2026-11-06-zeilen-spaltenrauschen.md`.
+  `docs/2026-11-06-zeilen-spaltenrauschen.md`.
 - Verstärkerglühen (für Planetenfotos laut Nutzer egal).
 - Debayering, Stacking, Installer, UI-Neugestaltung.
 
