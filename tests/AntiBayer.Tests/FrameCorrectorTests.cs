@@ -89,4 +89,28 @@ public class FrameCorrectorTests
         Assert.Equal(a, b);
         Assert.NotEqual(a, c);
     }
+
+    [Fact]
+    public void CountChanged_zaehlt_nur_die_genannte_Filterposition()
+    {
+        var before = CurveTable.Build(new CurvePoint[0], 8, 255);
+        var after = CurveTable.Build(new[] { new CurvePoint(100, 110) }, 8, 255);
+        var frame = new ushort[8 * 4];
+        Array.Fill(frame, (ushort)100);
+        // RGGB in an 8x4 frame: 8 pixels per filter position, 32 without pattern
+        Assert.Equal(8, FrameCorrector.CountChanged(frame, 8, 4, BayerPattern.RGGB, BayerFilter.Red, before, after));
+        Assert.Equal(8, FrameCorrector.CountChanged(frame, 8, 4, BayerPattern.RGGB, BayerFilter.Blue, before, after));
+        Assert.Equal(32, FrameCorrector.CountChanged(frame, 8, 4, BayerPattern.None, BayerFilter.All, before, after));
+        frame[0] = 0; // red pixel that both tables map to 0
+        Assert.Equal(7, FrameCorrector.CountChanged(frame, 8, 4, BayerPattern.RGGB, BayerFilter.Red, before, after));
+    }
+
+    [Fact]
+    public void CountChanged_ist_0_bei_gleichen_Tabellen()
+    {
+        var t = CurveTable.Build(new[] { new CurvePoint(100, 110) }, 8, 255);
+        var frame = new ushort[64];
+        Array.Fill(frame, (ushort)100);
+        Assert.Equal(0, FrameCorrector.CountChanged(frame, 8, 8, BayerPattern.RGGB, BayerFilter.Green1, t, t));
+    }
 }

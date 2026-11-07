@@ -39,4 +39,19 @@ public sealed class FrameCorrector
             }
         }
     }
+
+    /// <summary>Number of pixels of this filter position whose mapped value differs between the two tables.</summary>
+    public static int CountChanged(ReadOnlySpan<ushort> frame, int width, int height, BayerPattern pattern,
+        BayerFilter filter, CurveTable before, CurveTable after)
+    {
+        int count = 0;
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                if (Bayer.FilterAt(pattern, x, y) != filter) continue;
+                ushort v = frame[y * width + x];
+                if (before.Map(v) != after.Map(v)) count++;
+            }
+        return count;
+    }
 }

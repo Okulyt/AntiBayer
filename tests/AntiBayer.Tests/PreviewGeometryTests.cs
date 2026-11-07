@@ -65,4 +65,35 @@ public class PreviewGeometryTests
     {
         Assert.Null(PreviewGeometry.ZoomedClickToPixel(0, 0, 0, 0, 10, 10));
     }
+
+    [Theory]
+    [InlineData(400, 300, 100, 80)]
+    [InlineData(333, 517, 64, 48)]
+    [InlineData(300, 300, 7, 5)]
+    [InlineData(650, 410, 128, 96)]
+    public void PixelToZoomedRect_Mitte_fuehrt_mit_ZoomedClickToPixel_zum_selben_Pixel(int bw, int bh, int iw, int ih)
+    {
+        foreach (var (px, py) in new[] { (0, 0), (iw - 1, ih - 1), (iw / 2, ih / 3), (1, ih - 2) })
+        {
+            var r = PreviewGeometry.PixelToZoomedRect(px, py, bw, bh, iw, ih);
+            Assert.NotNull(r);
+            var back = PreviewGeometry.ZoomedClickToPixel(r.Value.X + r.Value.Width / 2, r.Value.Y + r.Value.Height / 2, bw, bh, iw, ih);
+            Assert.Equal((px, py), back);
+        }
+    }
+
+    [Theory]
+    [InlineData(400, 300, 100, 80)]
+    [InlineData(333, 517, 640, 480)]
+    public void PixelToZoomedRect_erstes_und_letztes_Pixel_liegen_in_der_gezeichneten_Flaeche(int bw, int bh, int iw, int ih)
+    {
+        double scale = System.Math.Min((double)bw / iw, (double)bh / ih);
+        int dw = (int)(iw * scale), dh = (int)(ih * scale);
+        int left = (bw - dw) / 2, top = (bh - dh) / 2;
+        var first = PreviewGeometry.PixelToZoomedRect(0, 0, bw, bh, iw, ih)!.Value;
+        var last = PreviewGeometry.PixelToZoomedRect(iw - 1, ih - 1, bw, bh, iw, ih)!.Value;
+        Assert.True(first.X >= left && first.Y >= top);
+        Assert.True(last.X + last.Width <= left + dw && last.Y + last.Height <= top + dh);
+        Assert.Null(PreviewGeometry.PixelToZoomedRect(iw, 0, bw, bh, iw, ih));
+    }
 }

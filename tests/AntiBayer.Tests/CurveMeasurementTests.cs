@@ -217,4 +217,114 @@ public class CurveMeasurementTests
         Assert.Equal(100, m.Points[BayerFilter.Green2].Single().Original);
         Assert.Equal(100, m.Points[BayerFilter.Red].Single().New);
     }
+
+    // ---- MeasureRegion ----
+
+    private static readonly BayerFilter[] AllFilters =
+        { BayerFilter.Red, BayerFilter.Green1, BayerFilter.Green2, BayerFilter.Blue };
+
+    private static double Expected(BayerFilter f, double lum) => f switch
+    {
+        BayerFilter.Red => lum * 1.08 - 0.0001 * lum * lum,
+        BayerFilter.Blue => lum * 0.92,
+        _ => lum,
+    };
+
+    [Fact]
+    public void Ausschnitt_liefert_je_Filter_Punkte_in_einer_Stufe_der_bekannten_Antwort()
+    {
+        var pattern = BayerPattern.GBRG;
+        var frame = Gradient(200, 100, pattern, 20, 220, false);
+        var src = new FakeSource(200, 100, 8, 3, 255, _ => frame);
+        var m = CurveMeasurement.MeasureRegion(src, pattern, new PixelRect(60, 20, 80, 60));
+        Assert.Equal(40 * 30 * 3, m.CellsUsed);
+        foreach (var f in AllFilters)
+        {
+            Assert.NotEmpty(m.Points[f]);
+            foreach (var p in m.Points[f])
+                Assert.InRange(p.Original, Expected(f, p.New) - 1, Expected(f, p.New) + 1);
+        }
+    }
+
+    [Fact]
+    public void Ausserhalb_des_Ausschnitts_aendert_nichts_an_den_Punkten()
+    {
+        var pattern = BayerPattern.RGGB;
+        var clean = Gradient(200, 100, pattern, 20, 220, false);
+        var changed = (ushort[])clean.Clone();
+        for (int y = 0; y < 100; y++)
+            for (int x = 0; x < 200; x++)
+            {
+                if (x < 40) changed[y * 200 + x] = 255;        // overexposed outside
+                else if (x >= 160) changed[y * 200 + x] = 200; // bright outside
+            }
+        var region = new PixelRect(60, 20, 80, 60);
+        var a = CurveMeasurement.MeasureRegion(new FakeSource(200, 100, 8, 3, 255, _ => clean), pattern, region);
+        var b = CurveMeasurement.MeasureRegion(new FakeSource(200, 100, 8, 3, 255, _ => changed), pattern, region);
+        Assert.Equal(a.CellsUsed, b.CellsUsed);
+        foreach (var f in AllFilters) Assert.Equal(a.Points[f].ToArray(), b.Points[f].ToArray());
+    }
+
+    [Fact]
+    public void Uebersteuertes_Pixel_im_Ausschnitt_nimmt_nur_diese_Zelle_in_diesem_Frame_heraus()
+    {
+        var pattern = BayerPattern.RGGB;
+        var clean = Gradient(200, 100, pattern, 20, 220, false);
+        var spiked = (ushort[])clean.Clone();
+        spiked[30 * 200 + 80] = 255;  // cell (40,15)
+        spiked[50 * 200 + 100] = 255; // cell (50,25)
+        spiked[51 * 200 + 101] = 255; // same cell (50,25)
+        var src = new FakeSource(200, 100, 8, 3, 255, i => i == 1 ? spiked : clean);
+        var m = CurveMeasurement.MeasureRegion(src, pattern, new PixelRect(60, 20, 80, 60));
+        Assert.Equal(40 * 30 * 3 - 2, m.CellsUsed);
+    }
+
+    [Fact]
+    public void Zu_kleiner_Ausschnitt_ergibt_leere_Listen()
+    {
+        var frame = Gradient(200, 100, BayerPattern.RGGB, 20, 220, false);
+        var src = new FakeSource(200, 100, 8, 3, 255, _ => frame);
+        var m = CurveMeasurement.MeasureRegion(src, BayerPattern.RGGB, new PixelRect(60, 20, 10, 10));
+        Assert.Equal(25 * 3, m.CellsUsed);
+        Assert.Equal(4, m.Points.Count);
+        Assert.All(m.Points.Values, l => Assert.Empty(l));
+    }
+
+    [Fact]
+    public void Ausschnitt_mit_Muster_None_wirft()
+    {
+        var src = new FakeSource(40, 40, 8, 1, 255, _ => new ushort[1600]);
+        Assert.Throws<ArgumentException>(() =>
+            CurveMeasurement.MeasureRegion(src, BayerPattern.None, new PixelRect(0, 0, 40, 40)));
+    }
+
+    [Fact]
+    public void Ungerade_Breite_und_ungerader_Anfang_des_Ausschnitts_nehmen_nur_ganze_Zellen()
+    {
+        var frame = Gradient(200, 100, BayerPattern.RGGB, 20, 220, false);
+        var src = new FakeSource(200, 100, 8, 3, 255, _ => frame);
+        var odd = CurveMeasurement.MeasureRegion(src, BayerPattern.RGGB, new PixelRect(60, 20, 81, 60));
+        Assert.Equal(40 * 30 * 3, odd.CellsUsed);
+        var shifted = CurveMeasurement.MeasureRegion(src, BayerPattern.RGGB, new PixelRect(61, 20, 80, 60));
+        Assert.Equal(39 * 30 * 3, shifted.CellsUsed);
+    }
+
+    [Fact]
+    public void Wandernder_dunkler_Fleck_wird_trotzdem_gemessen()
+    {
+        var pattern = BayerPattern.GBRG;
+        var baseFrame = Gradient(200, 100, pattern, 60, 200, false);
+        ushort[] Frame(int i)
+        {
+            var f = (ushort[])baseFrame.Clone();
+            // dark block of 4x4 cells, moved by one cell per frame
+            for (int y = 40; y < 48; y++)
+                for (int x = 80 + 2 * i; x < 88 + 2 * i; x++) f[y * 200 + x] = 5;
+            return f;
+        }
+        var src = new FakeSource(200, 100, 8, 10, 255, Frame);
+        var m = CurveMeasurement.MeasureRegion(src, pattern, new PixelRect(60, 20, 80, 60));
+        Assert.Equal(40 * 30 * 10, m.CellsUsed);
+        Assert.All(AllFilters, f => Assert.NotEmpty(m.Points[f]));
+    }
 }

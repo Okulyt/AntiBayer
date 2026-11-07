@@ -83,6 +83,7 @@
             this._pbPreview = new AntiBayer.PictureBoxWithInterpolationMode();
             this.buttonDeleteStrongPoints = new System.Windows.Forms.Button();
             this.buttonMeasureCurves = new System.Windows.Forms.Button();
+            this.buttonMeasureHere = new System.Windows.Forms.Button();
             this.buttonSaveValues = new System.Windows.Forms.Button();
             this.buttonLoadValues = new System.Windows.Forms.Button();
             this.labelFrame = new System.Windows.Forms.Label();
@@ -670,10 +671,10 @@
             this.Preview});
             this.listViewStrongPointList.FullRowSelect = true;
             this.listViewStrongPointList.HideSelection = false;
-            this.listViewStrongPointList.Location = new System.Drawing.Point(566, 321);
+            this.listViewStrongPointList.Location = new System.Drawing.Point(566, 347);
             this.listViewStrongPointList.Name = "listViewStrongPointList";
             this.listViewStrongPointList.ShowGroups = false;
-            this.listViewStrongPointList.Size = new System.Drawing.Size(532, 344);
+            this.listViewStrongPointList.Size = new System.Drawing.Size(532, 318);
             this.listViewStrongPointList.TabIndex = 47;
             this.listViewStrongPointList.UseCompatibleStateImageBehavior = false;
             this.listViewStrongPointList.View = System.Windows.Forms.View.Details;
@@ -715,6 +716,7 @@
             this._pbPreview.TabIndex = 0;
             this._pbPreview.TabStop = false;
             this._pbPreview.MouseClick += new System.Windows.Forms.MouseEventHandler(this._pbPreview_MouseClick);
+            this._pbPreview.Paint += new System.Windows.Forms.PaintEventHandler(this._pbPreview_Paint);
             // 
             // buttonDeleteStrongPoints
             // 
@@ -738,6 +740,18 @@
             this.buttonMeasureCurves.Text = "Measure curves";
             this.buttonMeasureCurves.UseVisualStyleBackColor = true;
             this.buttonMeasureCurves.Click += new System.EventHandler(this.buttonMeasureCurves_Click);
+            //
+            // buttonMeasureHere
+            //
+            this.buttonMeasureHere.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.buttonMeasureHere.Enabled = false;
+            this.buttonMeasureHere.Location = new System.Drawing.Point(711, 319);
+            this.buttonMeasureHere.Name = "buttonMeasureHere";
+            this.buttonMeasureHere.Size = new System.Drawing.Size(92, 23);
+            this.buttonMeasureHere.TabIndex = 56;
+            this.buttonMeasureHere.Text = "Measure here";
+            this.buttonMeasureHere.UseVisualStyleBackColor = true;
+            this.buttonMeasureHere.Click += new System.EventHandler(this.buttonMeasureHere_Click);
             //
             // buttonSaveValues
             //
@@ -840,6 +854,7 @@
             this.Controls.Add(this.buttonSaveValues);
             this.Controls.Add(this.buttonDeleteStrongPoints);
             this.Controls.Add(this.buttonMeasureCurves);
+            this.Controls.Add(this.buttonMeasureHere);
             this.Controls.Add(this.listViewStrongPointList);
             this.Controls.Add(this.buttonSetStrongPointRGGB);
             this.Controls.Add(this.labelSet);
@@ -972,6 +987,7 @@
         private System.Windows.Forms.ColumnHeader Preview;
         private System.Windows.Forms.Button buttonDeleteStrongPoints;
         private System.Windows.Forms.Button buttonMeasureCurves;
+        private System.Windows.Forms.Button buttonMeasureHere;
         private System.Windows.Forms.Button buttonSaveValues;
         private System.Windows.Forms.Button buttonLoadValues;
         private System.Windows.Forms.Label labelFrame;

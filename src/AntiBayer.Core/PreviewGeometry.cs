@@ -35,4 +35,20 @@ public static class PreviewGeometry
         if (dx < 0 || dy < 0 || dx >= drawnWidth || dy >= drawnHeight) return null;
         return (Math.Min((int)(dx / scale), imageWidth - 1), Math.Min((int)(dy / scale), imageHeight - 1));
     }
+
+    /// <summary>Rectangle of one image pixel inside a zoomed box; inverse of ZoomedClickToPixel. Null when the pixel is not drawn.</summary>
+    public static PixelRect? PixelToZoomedRect(int pixelX, int pixelY, int boxWidth, int boxHeight,
+        int imageWidth, int imageHeight)
+    {
+        if (boxWidth <= 0 || boxHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) return null;
+        if (pixelX < 0 || pixelY < 0 || pixelX >= imageWidth || pixelY >= imageHeight) return null;
+        double scale = Math.Min((double)boxWidth / imageWidth, (double)boxHeight / imageHeight);
+        int drawnWidth = (int)(imageWidth * scale), drawnHeight = (int)(imageHeight * scale);
+        int left = (boxWidth - drawnWidth) / 2, top = (boxHeight - drawnHeight) / 2;
+        int x0 = left + (int)Math.Ceiling(pixelX * scale), x1 = left + (int)Math.Ceiling((pixelX + 1) * scale);
+        int y0 = top + (int)Math.Ceiling(pixelY * scale), y1 = top + (int)Math.Ceiling((pixelY + 1) * scale);
+        x0 = Math.Min(x0, left + drawnWidth - 1); y0 = Math.Min(y0, top + drawnHeight - 1);
+        x1 = Math.Min(x1, left + drawnWidth); y1 = Math.Min(y1, top + drawnHeight);
+        return new PixelRect(x0, y0, Math.Max(1, x1 - x0), Math.Max(1, y1 - y0));
+    }
 }

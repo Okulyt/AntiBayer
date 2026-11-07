@@ -149,4 +149,46 @@ public class ParameterSetTests
         set.ClearPreview();
         Assert.Null(set.PreviewPoint(BayerFilter.Red));
     }
+
+    private static IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> Measured(
+        params (BayerFilter F, CurvePoint[] P)[] items)
+        => items.ToDictionary(i => i.F, i => (IReadOnlyList<CurvePoint>)i.P);
+
+    [Fact]
+    public void MergeMeasured_ersetzt_Punkte_im_neuen_Bereich_und_laesst_andere_stehen()
+    {
+        var set = new ParameterSet(BayerPattern.RGGB, 8);
+        foreach (var o in new ushort[] { 20, 40, 60, 80, 100 })
+            set.SetConfirmed(BayerFilter.Red, new CurvePoint(o, (ushort)(o + 1)));
+        set.SetPreview(BayerFilter.Red, new CurvePoint(50, 55));
+
+        int replaced = set.MergeMeasured(Measured((BayerFilter.Red, new[]
+            { new CurvePoint(38, 40), new CurvePoint(62, 60) })));
+
+        Assert.Equal(2, replaced); // 40 and 60
+        Assert.Equal(new ushort[] { 20, 38, 62, 80, 100 }, set.Confirmed(BayerFilter.Red).Select(p => p.Original).ToArray());
+        Assert.Null(set.PreviewPoint(BayerFilter.Red));
+    }
+
+    [Fact]
+    public void MergeMeasured_laesst_Filter_ohne_neue_Punkte_unveraendert()
+    {
+        var set = new ParameterSet(BayerPattern.RGGB, 8);
+        set.SetConfirmed(BayerFilter.Blue, new CurvePoint(50, 52));
+        int replaced = set.MergeMeasured(Measured(
+            (BayerFilter.Red, new[] { new CurvePoint(30, 32) }),
+            (BayerFilter.Blue, new CurvePoint[0])));
+        Assert.Equal(0, replaced);
+        Assert.Single(set.Confirmed(BayerFilter.Blue));
+        Assert.Single(set.Confirmed(BayerFilter.Red));
+    }
+
+    [Fact]
+    public void Nach_MergeMeasured_kann_ein_Punkt_per_SetConfirmed_ueberschrieben_werden()
+    {
+        var set = new ParameterSet(BayerPattern.RGGB, 8);
+        set.MergeMeasured(Measured((BayerFilter.Green1, new[] { new CurvePoint(30, 32) })));
+        set.SetConfirmed(BayerFilter.Green1, new CurvePoint(30, 35));
+        Assert.Equal(new CurvePoint(30, 35), set.Confirmed(BayerFilter.Green1).Single());
+    }
 }

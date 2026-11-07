@@ -37,6 +37,8 @@ public partial class MainForm : Form
     private Bitmap? previewBitmap;
 
     private bool suppressEvents;
+    private (int X, int Y)? selectedPixel;
+    private string? pixelInfo;
     private string? statusMessage;
     private string? curveHint;
 
@@ -127,6 +129,8 @@ public partial class MainForm : Form
         rawFrame = frame;
         frameIndex = 0;
         previewRect = null;
+        selectedPixel = null;
+        pixelInfo = null;
         SetPreviewBitmap(null);
 
         WithoutEvents(() =>
@@ -286,6 +290,7 @@ public partial class MainForm : Form
         }
         labelRed.Text = none ? "All" : "Red";
         buttonMeasureCurves.Enabled = Loaded && !none;
+        buttonMeasureHere.Enabled = Loaded && !none && previewRect != null;
     }
 
     private IEnumerable<Row> ActiveRows() => rows.Where(r => r.OriginalValue.Enabled);
@@ -402,6 +407,7 @@ public partial class MainForm : Form
             variances = Variances.Compute(corrected, r.Width, r.Height, set.Pattern);
         }
         textBoxImageInfo.Text = BuildImageInfo(variances);
+        pixelInfo = BuildPixelInfo(tables);
         RefreshStatus();
     }
 
@@ -440,6 +446,10 @@ public partial class MainForm : Form
             Math.Clamp((int)((long)e.Y * info.Height / _pbWorkingImage.Height), 0, info.Height - 1));
         var r = ComputePreviewRect();
         previewRect = r;
+        selectedPixel = null;
+        pixelInfo = null;
+        _pbPreview.Invalidate();
+        ApplyRowStates();
         set.ClearPreview();
         statusMessage = $"Preview ({r.X},{r.Y})-({r.X + r.Width},{r.Y + r.Height}) of {info.Width}x{info.Height}";
         RefreshCurvesAndPreview();
@@ -471,8 +481,45 @@ public partial class MainForm : Form
         clicked.OriginalValue.BackColor = clicked.FieldHighlight;
 
         set.ClearPreview();
-        statusMessage = $"Pixel ({x},{y}) = {rawFrame[y * info.Width + x]}";
+        selectedPixel = (x, y);
+        statusMessage = null; // the pixel part of the status takes over
         RefreshCurvesAndPreview();
+        _pbPreview.Invalidate();
+    }
+
+    private void _pbPreview_Paint(object? sender, PaintEventArgs e)
+    {
+        if (!Loaded || previewRect is not PixelRect r || selectedPixel is not (int x, int y)) return;
+        if (PreviewGeometry.PixelToZoomedRect(x - r.X, y - r.Y, _pbPreview.Width, _pbPreview.Height, r.Width, r.Height)
+            is not PixelRect box) return;
+        using var pen = new Pen(Color.Yellow, 1);
+        e.Graphics.DrawRectangle(pen, box.X, box.Y, Math.Max(0, box.Width - 1), Math.Max(0, box.Height - 1));
+    }
+
+    /// <summary>Raw value of the clicked pixel and what the preview curve makes of it, plus how many pixels of that filter change.</summary>
+    private string? BuildPixelInfo(IReadOnlyDictionary<BayerFilter, CurveTable> previewTables)
+    {
+        if (!Loaded || selectedPixel is not (int x, int y)) return null;
+        var info = source.Info;
+        var filter = BayerGeometry.FilterAt(set.Pattern, x, y);
+        ushort raw = rawFrame[y * info.Width + x];
+        string name = filter switch
+        {
+            BayerFilter.Red => "R",
+            BayerFilter.Green1 => "G1",
+            BayerFilter.Green2 => "G2",
+            BayerFilter.Blue => "B",
+            _ => "All",
+        };
+        var text = $"Pixel ({x},{y}) {name}: {raw} -> {previewTables[filter].Map(raw)}";
+        if (set.PreviewPoint(filter) != null)
+        {
+            var confirmed = set.BuildConfirmedTables(info.WhiteLevel)[filter];
+            int changed = FrameCorrector.CountChanged(rawFrame, info.Width, info.Height, set.Pattern, filter,
+                confirmed, previewTables[filter]);
+            text += $" | {changed} pixels change";
+        }
+        return text;
     }
 
     private static void SetField(NumericUpDown field, double value) =>
@@ -585,6 +632,46 @@ public partial class MainForm : Form
         RefreshCurvesAndPreview();
     }
 
+    private void buttonMeasureHere_Click(object? sender, EventArgs e)
+    {
+        if (!Loaded || set.Pattern == BayerPattern.None || previewRect is not PixelRect r) return;
+        bool hadPoints = set.HasConfirmedPoints;
+
+        MeasuredCurves measured;
+        var oldCursor = Cursor;
+        Cursor = Cursors.WaitCursor;
+        try
+        {
+            measured = CurveMeasurement.MeasureRegion(source, set.Pattern, r);
+        }
+        catch (IOException ex)
+        {
+            statusMessage = "Could not measure the crop: " + ex.Message;
+            RefreshStatus();
+            return;
+        }
+        finally
+        {
+            Cursor = oldCursor;
+        }
+
+        if (measured.Points.Values.All(l => l.Count == 0))
+        {
+            statusMessage = "No curve points could be measured in the crop (too few usable pixels). The curves are unchanged.";
+            RefreshStatus();
+            return;
+        }
+
+        int replaced = set.MergeMeasured(measured.Points);
+        var counts = rows.Select(FilterOf).Distinct()
+            .Select(f => $"{f} {(measured.Points.TryGetValue(f, out var l) ? l.Count : 0)}");
+        statusMessage = $"Measured in the crop from {measured.FramesUsed} frames: {string.Join(", ", counts)} points, {replaced} existing points replaced.";
+        if (!hadPoints) statusMessage += " Measuring the whole series with \"Measure curves\" first usually makes sense.";
+        ClearHighlights();
+        SyncNewFieldsToCurve();
+        RefreshCurvesAndPreview();
+    }
+
     /// <summary>Sets every active New field to what the confirmed curve makes of its Original field.</summary>
     private void SyncNewFieldsToCurve()
     {
@@ -652,7 +739,7 @@ public partial class MainForm : Form
 
     private void RefreshStatus()
     {
-        var parts = new List<string?> { statusMessage, source?.Info.Warning, curveHint };
+        var parts = new List<string?> { statusMessage, pixelInfo, source?.Info.Warning, curveHint };
         if (IsColorFilter(source?.Info.Capture.Filter))
             parts.Add("Filter=RGB: this may be a color capture, channel differences can be real object color.");
         textBoxStatus.Text = string.Join(" | ", parts.Where(p => !string.IsNullOrEmpty(p)));
@@ -743,7 +830,11 @@ public partial class MainForm : Form
         var r = ComputePreviewRect();
         if (r == previewRect) return;
         previewRect = r;
+        if (selectedPixel is (int sx, int sy) && (sx < r.X || sy < r.Y || sx >= r.X + r.Width || sy >= r.Y + r.Height))
+            selectedPixel = null;
+        ApplyRowStates();
         RefreshCurvesAndPreview();
+        _pbPreview.Invalidate();
     }
 
     private void checkBoxOnlyRGBHistogram_CheckedChanged(object? sender, EventArgs e)
