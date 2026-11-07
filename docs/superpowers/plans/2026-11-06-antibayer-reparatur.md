@@ -606,6 +606,72 @@ git add src tests
 git commit -m "feat: Kurven aus der Serie messen"
 ```
 
+### Task 11b: Im Ausschnitt messen und Wirkung am Pixel zeigen
+
+Grund: Handtest vom 2026-11-07. Flecken sind zu klein für die Gesamtmessung, und beim Absenken ist die Wirkung auf das angesehene Pixel nicht erkennbar. Der Nutzer hat beides freigegeben.
+
+**Files:**
+- Modify: `src/AntiBayer.Core/CurveMeasurement.cs`, `src/AntiBayer.Core/ParameterSet.cs`, `src/AntiBayer.Core/FrameCorrector.cs`, `src/AntiBayer.Core/PreviewGeometry.cs`, `src/AntiBayer.App/MainForm.cs`, `src/AntiBayer.App/MainForm.Designer.cs`, zugehörige Testdateien
+
+**Interfaces (Produces):**
+- `CurveMeasurement.MeasureRegion(IFrameSource source, BayerPattern pattern, PixelRect region)` liefert `MeasuredCurves`; Konstanten `RegionBins = 6`, `MinSamplesPerPoint = 200`.
+- `int ParameterSet.MergeMeasured(IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> points)`: Rückgabe = Zahl ersetzter Punkte.
+- `static int FrameCorrector.CountChanged(ReadOnlySpan<ushort> frame, int width, int height, BayerPattern pattern, BayerFilter filter, CurveTable before, CurveTable after)`.
+- `static Rectangle`-frei im Kern: `PixelRect? PreviewGeometry.PixelToZoomedRect(int pixelX, int pixelY, int boxWidth, int boxHeight, int imageWidth, int imageHeight)`: Bildschirmrechteck des Pixels in der Box, Umkehrung von `ZoomedClickToPixel`.
+
+**Verfahren `MeasureRegion` (am 2026-11-07 an echten Dateien erprobt):**
+1. `pattern == None` wirft `ArgumentException`. Frames wie bei `Measure` (`min(FrameCount, MaxFrames)`, Index `i * FrameCount / anzahl`).
+2. Zellen: alle vollständigen 2×2-Zellen ab geraden Koordinaten, die ganz in `region` liegen.
+3. Je Frame und Zelle eine Stichprobe: `L` = Mittel der vier Pixel, `S` = Mittel von `L` über 3×3 Zellen um die Zelle, am Bildrand nur über vorhandene Zellen (Nachbarn außerhalb von `region` zählen mit). Eine Zelle mit einem Pixel `>= WhiteLevel` fehlt nur in diesem Frame, und sie zählt auch nicht in `S`.
+4. `RegionBins` gleich breite Klassen von minimalem bis maximalem `S`. Von dunkel nach hell sammeln; sobald `>= MinSamplesPerPoint` Stichproben da sind, ein Punkt je Filter, dann neu sammeln; Rest am hellen Ende entfällt.
+5. Punktwerte und Verwerfen wie bei `Measure` Schritt 5 (Hilfsmethode teilen statt kopieren). `CellsUsed` = Zahl der Stichproben. Zu wenig Stichproben ergeben leere Listen.
+
+**`MergeMeasured`:** Je Filter mit mindestens einem neuen Punkt: alle bestätigten Punkte mit `kleinstes neues Original <= Original <= größtes neues Original` entfernen, die neuen eintragen. Filter ohne neue Punkte bleiben. Vorschau leeren. Andere Punkte bleiben unverändert.
+
+**`CountChanged`:** Zahl der Pixel dieser Filterposition, bei denen `before.Map` und `after.Map` verschieden sind.
+
+- [ ] **Step 1: Tests schreiben (fehlschlagend)**
+
+Mit deutschen Testnamen:
+- `MeasureRegion`: Ausschnitt mit bekannter Antwort je Filter; helle Bildteile außerhalb und übersteuerte Pixel außerhalb ändern die Punkte nicht. Im Ausschnitt sind die Punkte in ±1 Stufe (8 Bit) der bekannten Antwort.
+- Ein in einem Frame übersteuertes Pixel im Ausschnitt nimmt nur diese Zelle in diesem Frame heraus: `CellsUsed` ist genau um die betroffene Zahl kleiner.
+- Zu kleiner Ausschnitt ergibt leere Listen, `None` wirft, ungerade Breite des Ausschnitts nimmt nur ganze Zellen.
+- Frames wandern: Ein dunkler Fleck, der von Frame zu Frame um 1 Zelle versetzt ist, wird trotzdem gemessen und wirft nicht.
+- `MergeMeasured`: Punkte außerhalb des neuen Bereichs bleiben, innerhalb werden ersetzt, Rückgabe stimmt; Filter ohne neue Punkte bleiben; Vorschau ist leer; danach ist Überschreiben per `SetConfirmed` möglich.
+- `CountChanged`: zählt nur die genannte Filterposition, 0 bei gleichen Tabellen.
+- `PixelToZoomedRect`: Für mehrere Boxgrößen liefert `ZoomedClickToPixel` an der Rechteckmitte wieder dasselbe Pixel; das erste und letzte Pixel liegen in der gezeichneten Fläche.
+
+- [ ] **Step 2: Fehlschlag sehen, Kern umsetzen, Tests grün**
+
+`dotnet test C:/Claude/antibeyer/AntiBayer.sln`
+
+- [ ] **Step 3: Oberfläche**
+
+**Platz:** `listViewStrongPointList` wird nach (566, 347), Größe (532, 318) verschoben. Knopf `buttonMeasureHere`, Text „Measure here“, bei (711, 319), 92×23, gleiche Verankerung wie `buttonMeasureCurves`. Überschneidet das etwas Sichtbares, einen freien Platz in dieser Zeile nehmen und im Report nennen.
+
+**Freischalten:** nur wenn eine Datei geladen ist, das Muster nicht None ist und ein Vorschau-Ausschnitt besteht. `ApplyRowStates` und das Setzen von `previewRect` schalten mit.
+
+**`buttonMeasureHere_Click`:** Wartecursor, `MeasureRegion` auf den aktuellen Ausschnitt. `IOException` führt zu einer Statusmeldung, Kurven bleiben. Keine Punkte: Statusmeldung, Kurven bleiben. Sonst `MergeMeasured`, `SyncNewFieldsToCurve`, Status: Punkte je Farbe und Zahl ersetzter Punkte; bei `set.HasConfirmedPoints == false` vor dem Messen zusätzlich der Hinweis, dass zuerst „Measure curves“ sinnvoll ist. Dann `RefreshCurvesAndPreview`. Keine Rückfrage: Nur der Helligkeitsbereich des Ausschnitts ändert sich.
+
+**Rahmen:** Feld `selectedPixel` (Bildkoordinaten, nullable). Klick in die Vorschau setzt es. Leeren beim Laden, beim Klick in die Übersicht und wenn der Ausschnitt nach Größenänderung das Pixel nicht mehr enthält. Paint-Handler auf `_pbPreview` zeichnet mit `PixelToZoomedRect` einen 1 Pixel breiten gelben Rahmen um dieses Pixel, auch während ein Mark-Knopf gehalten wird. Nach dem Setzen und Leeren `_pbPreview.Invalidate()`.
+
+**Statusanzeige:** Eigener Teil `pixelInfo` in `RefreshStatus`, unabhängig von `statusMessage`. `RefreshCurvesAndPreview` setzt ihn bei `selectedPixel != null` auf
+`Pixel (x,y) R: 165 -> 150 | 1234 pixels change`
+Filter und Rohwert aus `rawFrame`, Zielwert aus der Vorschautabelle dieses Filters, also auch beim Bildwechsel aktuell. Der Teil „pixels change“ erscheint nur, wenn für diesen Filter ein Vorschaupunkt besteht, und zählt mit `CountChanged` zwischen bestätigter und Vorschautabelle über das ganze Bild. Bei None heißt der Filter „All“.
+
+- [ ] **Step 4: Prüfung an echten Dateien, nur lesend**
+
+Wegwerf-Konsolenprojekt im Scratchpad, nicht ins Repo. Für `D:\DemoSER\2022-04-18-1021_9-U-L-Sun.ser` und `D:\DemoSER\2022-04-18-1008_0-U-L-Sun.ser`: `Measure`, dann `MeasureRegion` auf einen Ausschnitt von 68×56 Pixeln um den dunkelsten Bereich, der mindestens 48 Pixel vom Scheibenrand entfernt liegt, dann `MergeMeasured`. Auf 40 anderen Frames ausgeben, Abweichung je Filter in Prozent vom Zellmittel für: (a) Fleckzellen im Ausschnitt (eigene geglättete Helligkeit im dunkelsten Bereich), (b) die Fläche (Helligkeit über dem Median innerhalb der Scheibe), jeweils vor und nach `MergeMeasured`. Erwartung: (a) wird deutlich kleiner, (b) ändert sich um höchstens 0,05 Prozentpunkte. Trifft das nicht zu, Verfahren nicht selbst verändern, sondern Zahlen melden.
+
+- [ ] **Step 5: Bauen, alle Tests, Commit**
+
+`dotnet build` (0 Fehler, 0 Warnungen), `dotnet test` (alle grün).
+
+```bash
+git add src tests
+git commit -m "feat: Im Ausschnitt messen und Wirkung am Pixel zeigen"
+```
+
 ### Task 12: Restliche Bedienung
 
 Behebt Fehler 10, 11, 12 und den Oberflächenteil von 14; bindet `.cps` an.

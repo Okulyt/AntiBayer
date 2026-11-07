@@ -161,6 +161,13 @@ Der Knopf läuft nur auf Anforderung, ersetzt vorhandene Punkte nur nach Rückfr
 Filter=RGB, weil er echte Farbunterschiede entfernen würde. Beim Klick in die Vorschau beginnt das
 Feld „neu“ beim aktuellen Kurvenwert, damit die erste Änderung nicht springt.
 
+Der Knopf „Measure here“ misst Einzelbilder im aktuellen Vorschau-Ausschnitt und ersetzt nur die
+Punkte im Helligkeitsbereich dieses Ausschnitts (Flecken sind für die Gesamtmessung zu klein). Das
+angeklickte Pixel trägt einen Rahmen; die Statuszeile zeigt seinen Wert vor und nach der Kurve und die
+Zahl der Pixel, die sich mitändern. Eine Verschiebung von Rot und Blau ist bewusst nicht enthalten:
+Gemessen wurden 0,15–0,95 Pixel Versatz bei Rot, ganze Schritte (2 Pixel) verschlechtern die Passung
+an den beiden Prüfserien. Neu bewerten nach Stacker-Ergebnis und Serien bei tiefer Sonne.
+
 ## Parametersätze (.cps)
 
 - Alte `.cps`-Dateien bleiben lesbar. Sie enthalten die XML-Namensräume `.../AntiBeyer` und
