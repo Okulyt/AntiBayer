@@ -4,6 +4,14 @@ Removes the Bayer pattern from raw recordings of a colour camera when they are m
 as monochrome images, so that stacking no longer locks onto the pattern. Written for the QHY5III462C
 with FireCapture, and usable for other colour sensors.
 
+## Download
+
+For Windows 10 and 11 (64 bit): **[AntiBayer-Setup.exe](https://github.com/Okulyt/AntiBayer/releases/latest/download/AntiBayer-Setup.exe)**
+from the [latest release](https://github.com/Okulyt/AntiBayer/releases/latest). The installer brings everything
+it needs, including the .NET runtime, and adds AntiBayer to the start menu. It is not signed, so Windows
+may warn before the first start ("More info", then "Run anyway"). Uninstall it like any other program in
+the Windows settings; the settings in `%APPDATA%\AntiBayer` stay.
+
 ## When it helps
 
 - White-light solar recordings through a foil filter.
@@ -111,6 +119,9 @@ dotnet build
 dotnet test
 dotnet publish src/AntiBayer.App/AntiBayer.App.csproj -c Release -r win-x64 --self-contained
 ```
+
+`build-installer.bat` publishes the app and builds `installer\AntiBayer-Setup.exe`; it needs NSIS.
+The version comes from `<Version>` in `src/AntiBayer.App/AntiBayer.App.csproj`.
 
 ## Background
 
