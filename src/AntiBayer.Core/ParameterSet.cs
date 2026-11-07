@@ -90,6 +90,10 @@ public sealed class ParameterSet
             return CurveTable.Build(pts, BitDepth, whiteLevel);
         });
 
+    /// <summary>What the confirmed curve of this filter makes of a value; the preview point plays no part.</summary>
+    public ushort ConfirmedCurveValue(BayerFilter f, ushort original, ushort whiteLevel) =>
+        CurveTable.Build(Confirmed(f), BitDepth, whiteLevel).Map(original);
+
     public IReadOnlyList<BayerFilter> NonMonotonicFilters(ushort whiteLevel) =>
         BuildConfirmedTables(whiteLevel).Where(kv => !kv.Value.IsMonotonic).Select(kv => kv.Key).ToList();
 

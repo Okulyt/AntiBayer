@@ -29,6 +29,29 @@ public class ParameterSetTests
     }
 
     [Fact]
+    public void Kurvenwert_als_Vorschaupunkt_laesst_die_Kurve_an_dieser_Stelle_unveraendert()
+    {
+        var s = new ParameterSet(BayerPattern.RGGB, 8);
+        s.SetConfirmed(BayerFilter.Red, new CurvePoint(100, 90));
+        s.SetConfirmed(BayerFilter.Red, new CurvePoint(200, 190));
+        ushort before = s.BuildPreviewTables(255)[BayerFilter.Red].Map(150);
+
+        ushort value = s.ConfirmedCurveValue(BayerFilter.Red, 150, 255);
+        s.SetPreview(BayerFilter.Red, new CurvePoint(150, value));
+
+        Assert.Equal(140, value);
+        Assert.Equal(before, s.BuildPreviewTables(255)[BayerFilter.Red].Map(150));
+    }
+
+    [Fact]
+    public void Kurvenwert_ohne_Punkte_ist_der_Eingangswert_und_ignoriert_die_Vorschau()
+    {
+        var s = new ParameterSet(BayerPattern.RGGB, 8);
+        s.SetPreview(BayerFilter.Red, new CurvePoint(150, 100));
+        Assert.Equal(150, s.ConfirmedCurveValue(BayerFilter.Red, 150, 255));
+    }
+
+    [Fact]
     public void Loeschen_wirkt_sofort()
     {
         var s = new ParameterSet(BayerPattern.RGGB, 8);

@@ -459,7 +459,8 @@ public partial class MainForm : Form
                 if (means.TryGetValue(FilterOf(row), out double mean))
                 {
                     SetField(row.OriginalValue, mean);
-                    SetField(row.NewValue, mean);
+                    // Start from what the curve already does here, so the first change does not jump.
+                    SetField(row.NewValue, set.ConfirmedCurveValue(FilterOf(row), (ushort)row.OriginalValue.Value, info.WhiteLevel));
                 }
         });
 
