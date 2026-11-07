@@ -93,8 +93,12 @@ precedence field by field; the header only fills gaps. Filter and colour gains c
   cannot correct this; see "Color shift". A difference in sharpness is not corrected.
 - The colour balance can drift slightly across the field, by about 0.1 steps per 100 pixels on a 0-255
   scale. It is not corrected, because it left no clear grid in the tested stacks.
-- On one series, red and blue stay about 1 step (scale 0-255) off the others at 70-85 % of the surface
-  brightness. The cause is not known.
+- Clouds passing during a recording change the surface brightness from frame to frame, by up to about
+  25 % on the tested series. A dimmed part of the surface can then have the same grey value as penumbra in
+  a bright frame, but a different colour, and the single curve per filter only reaches the mean of both.
+  On that series red and blue stayed up to about 2.5 steps (scale 0-255) off green at 70-85 % of the
+  surface brightness in bright frames, which shows as a fine grid in the penumbra after strong sharpening.
+  If enough good frames remain, cut the cloudy part from the series before using AntiBayer.
 - Above the last and below the first support point the curve runs straight to the white level and to
   black.
 
