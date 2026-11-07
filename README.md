@@ -108,6 +108,21 @@ dotnet test
 dotnet publish src/AntiBayer.App/AntiBayer.App.csproj -c Release -r win-x64 --self-contained
 ```
 
+## Background
+
+The original motivation and idea, from April 2023. The operating details of that time are replaced by
+the sections above.
+
+Using a so called one shot camera for astronomy imaging I often encountered image artefacts from the bayer matrix of the chip during image processing. During unsharp masking these artefacts could even become dominant over the actual image. They are caused when during stacking the stacking algorithm snaps in on bayer artefacts rather than real image detail.
+
+This is not only limited to largely monochrome appearing images like sun spot or moon images. It also happened processing Jupiters images etc. Additionally there are new sensors on the market like IMX 462 or IMX 678 that are very responsive in NIR. While the bayer matrix becomes (almost!) invisible around 850nm allowing full resolution CH4 Methane images it ist still very prominent when using IR742 or IR680 Filters. This can only partially be biased with the RGB Gain settings of the chip. Even seperating RGB channels doesn't work as I found that the two green pixels of the matrix behave differently.
+
+So my idea was to develop a program that can apply correction curves to each bayer channel. A first approch was very simple: I used a scaling factor and an offset value for each of the four(!) channels. But I found that this would work only for a small range of gray values while brighter or darker parts of the image got worse artefacts.
+
+Not knowing exactly how a perfect correction would look like I decided to program a linear interpolation between an (almost) unlimited number of strong points. The idea was to pick a point from an image of the series and provide the correct value, then repeat this for another point of the image (with a different gray value). Of course for each bayer channel seperately. Using 256 strongpoints for an 8 bit image will simply nail the curve to the strongpoints as there's no room for interpolation.
+
+Sven Wienstein, 17 April 2023
+
 ## License
 
 AGPL, see `LICENSE.txt`.
