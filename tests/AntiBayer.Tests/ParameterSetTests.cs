@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using AntiBayer.Core;
 using Xunit;
@@ -49,6 +50,27 @@ public class ParameterSetTests
         var s = new ParameterSet(BayerPattern.RGGB, 8);
         s.SetPreview(BayerFilter.Red, new CurvePoint(150, 100));
         Assert.Equal(150, s.ConfirmedCurveValue(BayerFilter.Red, 150, 255));
+    }
+
+    [Fact]
+    public void ReplaceConfirmed_verwirft_alte_Punkte_und_Vorschau_und_erlaubt_Nachjustieren()
+    {
+        var s = new ParameterSet(BayerPattern.RGGB, 8);
+        s.SetConfirmed(BayerFilter.Red, new CurvePoint(50, 60));
+        s.SetPreview(BayerFilter.Blue, new CurvePoint(70, 90));
+
+        s.ReplaceConfirmed(new Dictionary<BayerFilter, IReadOnlyList<CurvePoint>>
+        {
+            [BayerFilter.Red] = new[] { new CurvePoint(100, 90), new CurvePoint(200, 190) },
+            [BayerFilter.Green1] = new CurvePoint[0],
+        });
+
+        Assert.Equal(new[] { new CurvePoint(100, 90), new CurvePoint(200, 190) }, s.Confirmed(BayerFilter.Red).ToArray());
+        Assert.Null(s.PreviewPoint(BayerFilter.Blue));
+        Assert.Equal(140, s.ConfirmedCurveValue(BayerFilter.Red, 150, 255));
+
+        s.SetConfirmed(BayerFilter.Red, new CurvePoint(100, 120));
+        Assert.Equal(120, s.ConfirmedCurveValue(BayerFilter.Red, 100, 255));
     }
 
     [Fact]

@@ -285,6 +285,7 @@ public partial class MainForm : Form
             row.SetPoint.Enabled = active;
         }
         labelRed.Text = none ? "All" : "Red";
+        buttonMeasureCurves.Enabled = Loaded && !none;
     }
 
     private IEnumerable<Row> ActiveRows() => rows.Where(r => r.OriginalValue.Enabled);
@@ -533,7 +534,67 @@ public partial class MainForm : Form
                 set.RemoveConfirmed(entry.Filter, entry.Point.Original);
         set.ClearPreview();
         statusMessage = "Points deleted.";
+        SyncNewFieldsToCurve();
         RefreshCurvesAndPreview();
+    }
+
+    private void buttonMeasureCurves_Click(object? sender, EventArgs e)
+    {
+        if (!Loaded || set.Pattern == BayerPattern.None) return;
+        if (IsColorFilter(source.Info.Capture.Filter) && MessageBox.Show(this,
+                "The filter is RGB, so this may be a color capture. Measuring would treat real color differences " +
+                "between the channels as Bayer pattern and remove them. Measure anyway?",
+                AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            return;
+        if (set.HasConfirmedPoints && MessageBox.Show(this, "Replace the existing curve points?",
+                AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            return;
+
+        MeasuredCurves measured;
+        var oldCursor = Cursor;
+        Cursor = Cursors.WaitCursor;
+        try
+        {
+            measured = CurveMeasurement.Measure(source, set.Pattern);
+        }
+        catch (IOException ex)
+        {
+            statusMessage = "Could not measure the curves: " + ex.Message;
+            RefreshStatus();
+            return;
+        }
+        finally
+        {
+            Cursor = oldCursor;
+        }
+
+        if (measured.Points.Values.All(l => l.Count == 0))
+        {
+            statusMessage = "No curve points could be measured (too few usable pixels). The curves are unchanged.";
+            RefreshStatus();
+            return;
+        }
+
+        set.ReplaceConfirmed(measured.Points);
+        var counts = rows.Select(FilterOf).Distinct()
+            .Select(f => $"{f} {(measured.Points.TryGetValue(f, out var l) ? l.Count : 0)}");
+        statusMessage = $"Measured from {measured.FramesUsed} frames: {string.Join(", ", counts)} points.";
+        if (measured.FramesUsed < 10) statusMessage += " Few frames make the measurement less certain.";
+        ClearHighlights();
+        SyncNewFieldsToCurve();
+        RefreshCurvesAndPreview();
+    }
+
+    /// <summary>Sets every active New field to what the confirmed curve makes of its Original field.</summary>
+    private void SyncNewFieldsToCurve()
+    {
+        if (!Loaded) return;
+        WithoutEvents(() =>
+        {
+            foreach (var row in ActiveRows())
+                if (row.OriginalValue.Value > 0)
+                    SetField(row.NewValue, set.ConfirmedCurveValue(FilterOf(row), (ushort)row.OriginalValue.Value, source.Info.WhiteLevel));
+        });
     }
 
     private void FillPointList()

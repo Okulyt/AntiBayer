@@ -82,6 +82,7 @@
             this.Preview = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this._pbPreview = new AntiBayer.PictureBoxWithInterpolationMode();
             this.buttonDeleteStrongPoints = new System.Windows.Forms.Button();
+            this.buttonMeasureCurves = new System.Windows.Forms.Button();
             this.buttonSaveValues = new System.Windows.Forms.Button();
             this.buttonLoadValues = new System.Windows.Forms.Button();
             this.labelFrame = new System.Windows.Forms.Label();
@@ -726,8 +727,20 @@
             this.buttonDeleteStrongPoints.UseVisualStyleBackColor = true;
             this.buttonDeleteStrongPoints.Click += new System.EventHandler(this.buttonDeleteStrongPoints_Click);
             // 
+            // buttonMeasureCurves
+            //
+            this.buttonMeasureCurves.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.buttonMeasureCurves.Enabled = false;
+            this.buttonMeasureCurves.Location = new System.Drawing.Point(711, 292);
+            this.buttonMeasureCurves.Name = "buttonMeasureCurves";
+            this.buttonMeasureCurves.Size = new System.Drawing.Size(92, 23);
+            this.buttonMeasureCurves.TabIndex = 55;
+            this.buttonMeasureCurves.Text = "Measure curves";
+            this.buttonMeasureCurves.UseVisualStyleBackColor = true;
+            this.buttonMeasureCurves.Click += new System.EventHandler(this.buttonMeasureCurves_Click);
+            //
             // buttonSaveValues
-            // 
+            //
             this.buttonSaveValues.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonSaveValues.Location = new System.Drawing.Point(805, 292);
             this.buttonSaveValues.Name = "buttonSaveValues";
@@ -826,6 +839,7 @@
             this.Controls.Add(this.buttonLoadValues);
             this.Controls.Add(this.buttonSaveValues);
             this.Controls.Add(this.buttonDeleteStrongPoints);
+            this.Controls.Add(this.buttonMeasureCurves);
             this.Controls.Add(this.listViewStrongPointList);
             this.Controls.Add(this.buttonSetStrongPointRGGB);
             this.Controls.Add(this.labelSet);
@@ -957,6 +971,7 @@
         private System.Windows.Forms.ColumnHeader Target;
         private System.Windows.Forms.ColumnHeader Preview;
         private System.Windows.Forms.Button buttonDeleteStrongPoints;
+        private System.Windows.Forms.Button buttonMeasureCurves;
         private System.Windows.Forms.Button buttonSaveValues;
         private System.Windows.Forms.Button buttonLoadValues;
         private System.Windows.Forms.Label labelFrame;

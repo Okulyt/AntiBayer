@@ -59,6 +59,17 @@ public sealed class ParameterSet
 
     public void ClearPreview() => _preview.Clear();
 
+    /// <summary>Discards all confirmed points and the preview, then sets the given points.</summary>
+    public void ReplaceConfirmed(IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> points)
+    {
+        foreach (var f in points.Keys) Check(f);
+        _confirmed.Clear();
+        _preview.Clear();
+        foreach (var kv in points)
+            foreach (var p in kv.Value)
+                SetConfirmed(kv.Key, p);
+    }
+
     public CurvePoint? PreviewPoint(BayerFilter f) => _preview.TryGetValue(f, out var q) ? q : null;
 
     public bool HasConfirmedPoints => _confirmed.Values.Any(d => d.Count > 0);
