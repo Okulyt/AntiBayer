@@ -4,7 +4,8 @@ using System.Linq;
 
 namespace AntiBayer.Core;
 
-public readonly record struct CurvePoint(ushort Original, ushort New);
+/// <summary>New may hold a fraction: at 8 bit a rounded support point would change the contrast of the image.</summary>
+public readonly record struct CurvePoint(ushort Original, double New);
 
 /// <summary>Piecewise-linear tone curve as lookup table: integer part plus fraction per input value.</summary>
 public sealed class CurveTable
@@ -27,9 +28,9 @@ public sealed class CurveTable
         if (whiteLevel >= size) throw new ArgumentOutOfRangeException(nameof(whiteLevel));
 
         // Points at or above the white level are dropped; the white level itself is forced to (white, white).
-        var byOriginal = new SortedDictionary<int, int>();
+        var byOriginal = new SortedDictionary<int, double>();
         foreach (var p in points)
-            if (p.Original < whiteLevel) byOriginal[p.Original] = Math.Min((int)p.New, (int)whiteLevel);
+            if (p.Original < whiteLevel) byOriginal[p.Original] = Math.Min(p.New, whiteLevel);
         byOriginal[whiteLevel] = whiteLevel;
         if (!byOriginal.ContainsKey(0)) byOriginal[0] = 0;
 

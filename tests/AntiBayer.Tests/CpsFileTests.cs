@@ -146,6 +146,32 @@ public class CpsFileTests
     {
         Assert.ThrowsAny<IOException>(() => CpsFile.Load(Path.Combine(Path.GetTempPath(), "gibt-es-nicht-" + Guid.NewGuid().ToString("N") + ".cps")));
     }
+
+    [Fact]
+    public void Ein_neuer_Wert_mit_Nachkommastellen_ueberlebt_den_Rundgang()
+    {
+        var set = new ParameterSet(BayerPattern.GBRG, 8);
+        set.SetConfirmed(BayerFilter.Red, new CurvePoint(100, 97.25));
+        string path = Path.Combine(TestData.TempDir(), "a.cps");
+        CpsFile.Save(path, set);
+        Assert.Equal(97.25, System.Linq.Enumerable.Single(CpsFile.Load(path).Confirmed(BayerFilter.Red)).New);
+    }
+
+    [Theory]
+    [InlineData("256")]
+    [InlineData("255.5")]
+    [InlineData("-1")]
+    [InlineData("NaN")]
+    [InlineData("1e2")]
+    public void Ein_ungueltiger_neuer_Wert_wird_abgelehnt(string value)
+    {
+        var set = new ParameterSet(BayerPattern.GBRG, 8);
+        set.SetConfirmed(BayerFilter.Red, new CurvePoint(100, 97));
+        string path = Path.Combine(TestData.TempDir(), "a.cps");
+        CpsFile.Save(path, set);
+        File.WriteAllText(path, File.ReadAllText(path).Replace("new=\"97\"", "new=\"" + value + "\""));
+        Assert.Throws<CpsFormatException>(() => CpsFile.Load(path));
+    }
 }
 
 public class CpsAltdateiAnwendungTests

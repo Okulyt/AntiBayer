@@ -226,17 +226,6 @@ public class ColorShiftTests
     }
 
     [Fact]
-    public void Eine_Messung_im_Ausschnitt_behaelt_den_Versatz()
-    {
-        var set = new ParameterSet(Pattern, 16) { MeasuredShift = new ColorShift(0.5, 0, 0, 0), ShiftEnabled = true };
-        set.MergeMeasured(new Dictionary<BayerFilter, IReadOnlyList<CurvePoint>>
-        {
-            [BayerFilter.Red] = new[] { new CurvePoint(100, 90) },
-        });
-        Assert.True(set.ShiftEnabled);
-    }
-
-    [Fact]
     public void Der_Versatz_ueberlebt_den_Rundgang_durch_die_Parameterdatei()
     {
         var set = new ParameterSet(Pattern, 16) { MeasuredShift = new ColorShift(0.123456, -0.5, 0.25, 0.75), ShiftEnabled = true };
@@ -265,78 +254,5 @@ public class ColorShiftTests
         CpsFile.Save(path, new ParameterSet(Pattern, 16) { MeasuredShift = new ColorShift(1, 2, 3, 4) });
         System.IO.File.WriteAllText(path, System.IO.File.ReadAllText(path).Replace("<RedY>2</RedY>", ""));
         Assert.Throws<CpsFormatException>(() => CpsFile.Load(path));
-    }
-
-    // ---- Measure here: surface brightness ----
-
-    private static ushort[] SpotOnSurface(int w, int h, double surface, double dark, int spotRight)
-    {
-        var f = new ushort[w * h];
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                double lum = x < spotRight ? dark + (surface - dark) * x / spotRight : surface;
-                double factor = Bayer.FilterAt(Pattern, x, y) switch
-                {
-                    BayerFilter.Red => 1.05,
-                    BayerFilter.Blue => 0.95,
-                    _ => 1.0,
-                };
-                f[y * w + x] = (ushort)Math.Round(lum * factor);
-            }
-        return f;
-    }
-
-    [Fact]
-    public void Flaechenhelligkeit_ist_die_Mitte_der_hellen_Haelfte()
-    {
-        var frame = SpotOnSurface(W, H, 40000, 1000, W / 4);
-        double surface = CurveMeasurement.SurfaceLevel(new FakeSource(frame));
-        Assert.InRange(surface, 38000, 42000);
-    }
-
-    [Fact]
-    public void Flaechenhelligkeit_ignoriert_einzelne_heisse_Pixel()
-    {
-        var frame = SpotOnSurface(W, H, 20000, 1000, W / 4);
-        frame[5] = 65000; frame[77] = 65000;
-        double surface = CurveMeasurement.SurfaceLevel(new FakeSource(frame));
-        Assert.InRange(surface, 19000, 21000);
-    }
-
-    [Fact]
-    public void Messung_im_Ausschnitt_laesst_die_Flaechenhelligkeit_aus()
-    {
-        var frame = SpotOnSurface(W, H, 40000, 1000, W / 2);
-        var measured = CurveMeasurement.MeasureRegionBelowSurface(
-            new FakeSource(frame), Pattern, new PixelRect(0, 0, W, H));
-
-        var points = measured.Points[BayerFilter.Red];
-        Assert.NotEmpty(points);
-        Assert.All(points, p => Assert.True(p.New < 40000 * CurveMeasurement.SurfaceFraction + 500));
-    }
-
-    [Fact]
-    public void Ein_Ausschnitt_nur_auf_der_Flaeche_liefert_keine_Punkte()
-    {
-        var frame = SpotOnSurface(W, H, 40000, 1000, W / 4);
-        var measured = CurveMeasurement.MeasureRegionBelowSurface(
-            new FakeSource(frame), Pattern, new PixelRect(W / 2, 0, W / 2, H));
-
-        Assert.All(measured.Points.Values, l => Assert.Empty(l));
-        Assert.True(measured.CellsUsed > 0);
-    }
-
-    [Fact]
-    public void Ein_Ausschnitt_auf_der_Flaeche_aendert_die_globale_Kurve_dort_nicht()
-    {
-        var frame = SpotOnSurface(W, H, 40000, 1000, W / 2);
-        var source = new FakeSource(frame);
-        var set = new ParameterSet(Pattern, 16);
-        set.SetConfirmed(BayerFilter.Red, new CurvePoint(41000, 39500));
-
-        set.MergeMeasured(CurveMeasurement.MeasureRegionBelowSurface(source, Pattern, new PixelRect(0, 0, W, H)).Points);
-
-        Assert.Contains(set.Confirmed(BayerFilter.Red), p => p.Original == 41000 && p.New == 39500);
     }
 }

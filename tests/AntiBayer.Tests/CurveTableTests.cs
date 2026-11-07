@@ -84,4 +84,15 @@ public class CurveTableTests
         Assert.False(bad.IsMonotonic);
         Assert.True(good.IsMonotonic);
     }
+
+    [Fact]
+    public void Ein_neuer_Wert_mit_Nachkommastellen_wirkt_im_Mittel_genau()
+    {
+        var t = CurveTable.Build(new[] { new CurvePoint(100, 100.4) }, 8, 255);
+        Assert.Equal(100, t.Map(100));
+        var r = new Random(1);
+        double mean = 0;
+        for (int i = 0; i < 100000; i++) mean += t.MapDithered(100, r);
+        Assert.InRange(mean / 100000, 100.39, 100.41);
+    }
 }

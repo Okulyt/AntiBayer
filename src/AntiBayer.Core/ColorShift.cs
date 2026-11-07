@@ -66,7 +66,7 @@ internal sealed class GreenField
     }
 
     /// <summary>Mean over up to 5 values along one row or column; the window is shortened at the ends.</summary>
-    private static void RunningMean(double[] from, int start, int step, int length, double[] to)
+    internal static void RunningMean(double[] from, int start, int step, int length, double[] to)
     {
         double sum = 0;
         int a = 0, b = -1;

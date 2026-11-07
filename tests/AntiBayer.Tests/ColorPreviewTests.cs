@@ -76,4 +76,40 @@ public class ColorPreviewTests
         Assert.Equal(48, ColorPreview.ToRgb(frame, 4, 4, BayerPattern.BGGR, new PixelRect(0, 0, 4, 4), 255).Length);
         Assert.All(ColorPreview.ToRgb(frame, 4, 4, BayerPattern.BGGR, new PixelRect(0, 0, 4, 4), 0), b => Assert.Equal(0, b));
     }
+
+    [Fact]
+    public void Die_Versatzkorrektur_nimmt_den_Farbsaum_aus_der_Farbansicht()
+    {
+        const int w = 64, h = 32;
+        const double shiftX = 0.6;
+        var pattern = BayerPattern.GBRG;
+        double Edge(double x) => 20000 + 25000 * (1 + Math.Tanh((x - 32) / 4)) / 2;
+        ushort[] Scene(double shift)
+        {
+            var f = new ushort[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    f[y * w + x] = (ushort)Math.Round(Edge(Bayer.FilterAt(pattern, x, y) == BayerFilter.Red ? x + shift : x));
+            return f;
+        }
+        var frame = Scene(shiftX);
+
+        var corrected = (ushort[])frame.Clone();
+        new ColorShiftCorrector(pattern, w, h, new ColorShift(shiftX, 0, 0, 0), 65535).Apply(frame, corrected, null);
+
+        var region = new PixelRect(8, 8, 48, 16);
+        var before = ColorPreview.ToRgb(frame, w, h, pattern, region, 65535);
+        var after = ColorPreview.ToRgb(corrected, w, h, pattern, region, 65535);
+        // At a steep edge the view shows a little colour even without any shift, because each colour is sampled at other places.
+        var clean = ColorPreview.ToRgb(Scene(0), w, h, pattern, region, 65535);
+
+        static int Fringe(byte[] rgb)
+        {
+            int worst = 0;
+            for (int i = 0; i < rgb.Length; i += 3) worst = Math.Max(worst, Math.Abs(rgb[i] - rgb[i + 1]));
+            return worst;
+        }
+        Assert.True(Fringe(before) >= Fringe(clean) + 3, $"vorher {Fringe(before)}, ohne Versatz {Fringe(clean)}");
+        Assert.True(Fringe(after) <= Fringe(clean) + 1, $"nachher {Fringe(after)}, ohne Versatz {Fringe(clean)}");
+    }
 }

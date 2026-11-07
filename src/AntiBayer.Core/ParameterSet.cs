@@ -9,7 +9,7 @@ public enum SetCompatibility { Ok, PatternDiffers, BitDepthMismatch, CurveCountM
 /// <summary>Confirmed and preview curve points per filter position.</summary>
 public sealed class ParameterSet
 {
-    private readonly Dictionary<BayerFilter, SortedDictionary<ushort, ushort>> _confirmed = new();
+    private readonly Dictionary<BayerFilter, SortedDictionary<ushort, double>> _confirmed = new();
     private readonly Dictionary<BayerFilter, CurvePoint> _preview = new();
 
     public BayerPattern Pattern { get; private set; }
@@ -53,7 +53,7 @@ public sealed class ParameterSet
     public void SetConfirmed(BayerFilter f, CurvePoint p)
     {
         Check(f);
-        if (!_confirmed.TryGetValue(f, out var d)) _confirmed[f] = d = new SortedDictionary<ushort, ushort>();
+        if (!_confirmed.TryGetValue(f, out var d)) _confirmed[f] = d = new SortedDictionary<ushort, double>();
         d[p.Original] = p.New;
     }
 
@@ -80,29 +80,6 @@ public sealed class ParameterSet
         foreach (var kv in points)
             foreach (var p in kv.Value)
                 SetConfirmed(kv.Key, p);
-    }
-
-    /// <summary>
-    /// Per filter with new points: removes confirmed points within the range of the new originals and sets the new ones.
-    /// Returns the number of replaced points; clears the preview.
-    /// </summary>
-    public int MergeMeasured(IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> points)
-    {
-        foreach (var f in points.Keys) Check(f);
-        int replaced = 0;
-        foreach (var kv in points)
-        {
-            if (kv.Value.Count == 0) continue;
-            ushort lo = kv.Value.Min(p => p.Original), hi = kv.Value.Max(p => p.Original);
-            foreach (var old in Confirmed(kv.Key).Where(c => c.Original >= lo && c.Original <= hi))
-            {
-                RemoveConfirmed(kv.Key, old.Original);
-                replaced++;
-            }
-            foreach (var p in kv.Value) SetConfirmed(kv.Key, p);
-        }
-        _preview.Clear();
-        return replaced;
     }
 
     public CurvePoint? PreviewPoint(BayerFilter f) => _preview.TryGetValue(f, out var q) ? q : null;

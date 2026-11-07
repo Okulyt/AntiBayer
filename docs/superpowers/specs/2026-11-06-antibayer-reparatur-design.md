@@ -155,7 +155,7 @@ werden für 16 Bit in 256 Klassen zusammengefasst.
 
 Ergänzung nach der Sichtprüfung (2026-11-07, vom Nutzer freigegeben): Der Knopf „Measure curves“
 misst die Kurven aus bis zu 40 über die Serie verteilten Frames. Je Farbe entstehen bis zu 12
-Stützpunkte, die den Filterwert auf das Mittel seiner 2×2-Zelle abbilden. Übersteuerte Zellen zählen
+Stützpunkte, die den Filterwert auf seinen Bezugswert abbilden (siehe „Kurvenmessung“). Übersteuerte Pixel zählen
 nicht mit. Die Punkte sind normale bestätigte Stützpunkte und lassen sich von Hand ändern oder löschen.
 Der Knopf läuft nur auf Anforderung, ersetzt vorhandene Punkte nur nach Rückfrage und warnt bei
 Filter=RGB, weil er echte Farbunterschiede entfernen würde. Beim Klick in die Vorschau beginnt das
@@ -164,12 +164,23 @@ Feld „neu“ beim aktuellen Kurvenwert, damit die erste Änderung nicht spring
 Unter der Vorschau zeigt eine Lupe die 3×3 Bayer-Zellen (6×6 Pixel) um das angeklickte Pixel ohne Rahmen
 und mit der aktuellen Wertänderung; Striche außerhalb des Bildes zeigen auf das Pixel.
 
-Der Knopf „Measure here“ misst Einzelbilder im aktuellen Vorschau-Ausschnitt und ersetzt nur die
-Punkte im Helligkeitsbereich dieses Ausschnitts (Flecken sind für die Gesamtmessung zu klein). Punkte ab
-90 % der Flächenhelligkeit bleiben aus: Sie verstellten vorher die Kurve für die ganze Sonnenfläche und
-erzeugten dort Gitter (`1021_5`, Rot auf der Fläche −0,71 statt −0,01). Flächenhelligkeit ist der Median
-aller Werte über der Hälfte des 99,9-%-Werts aus 5 Frames. Das angeklickte Pixel trägt einen Rahmen; die
-Statuszeile zeigt seinen Wert vor und nach der Kurve und die Zahl der Pixel, die sich mitändern.
+Das angeklickte Pixel trägt einen Rahmen; die Statuszeile zeigt seinen Wert vor und nach der Kurve und die
+Zahl der Pixel, die sich mitändern.
+
+### Kurvenmessung, Stand 2026-11-07
+
+Ersetzt die Messung am Mittelbild gegen das Mittel der 2×2-Zelle und den Knopf „Measure here“. Der Zellbezug
+liegt ein halbes Pixel neben jedem Filter, sodass eine einseitige Steigung wie der Sonnenrand als Farbe
+gemessen wurde; das Mittelbild verwischte zudem seltene Helligkeiten bei Bilddrift. Jetzt: je Frame jedes
+Pixel gegen [1 2 1]⊗[1 2 1] um das Pixel, das alle Filter im richtigen Anteil enthält. Die Klasse kommt aus
+einem 5×5-Mittel, weil ein Bezug als Klasse die Kurve durch das Rauschen abflacht. Bis zu 40 Frames, 12
+Klassen, mindestens 200 Werte je Punkt und Filter. Der neue Wert eines Punkts behält zwei Nachkommastellen,
+gerundet änderte er bei 8 Bit den Kontrast. Die `.cps` speichert ihn so.
+
+Der Knopf „Measure here“ entfällt: An `1008_0` und `1021_5` sind die Flecken ohne ihn besser als vorher mit ihm
+(siehe Tabelle unten). Der Beleg sind nur diese beiden Serien.
+
+Offen: `1018_3` behält bei 70–85 % der Fläche Rot +1,0 und Blau −1,0 (Skala 0–255), Ursache unbekannt.
 
 ### Farbversatz
 
@@ -204,13 +215,28 @@ Der Ablauf im Programm selbst bestätigt das: `1021_5` mit Serie aus dem Program
 | globale Kurven und Versatz | 0,09 | 0,83 | 7,36 | 459 von 2601 |
 | Ausschnitt unter der Fläche und Versatz | 0,09 | 0,55 | 5,49 | 305 von 2601 |
 
-Das Gitter am Rand sitzt bei 30–70 % der Flächenhelligkeit. Dort bleibt in der Serie mit nur globalen
-Kurven Rot um +2,6 bis +3,4 und Blau um −1,5 bis −2,0 (Skala 0–255) neben Grün, also ein Fehler der Kurve,
-kein Versatz. Vermutete Ursache, nicht geprüft: Die Kurve wird am Mittelbild gemessen, das die große
-Bilddrift dieser Serie verwischt.
+Das Gitter am Rand saß bei 30–70 % der Flächenhelligkeit und war ein Fehler der Kurve. Neue Messung, erprobt
+außerhalb des Programms mit noch gerundeten Punkten:
+
+| Stack | Median | Flecken | Rand | Fenster über 1,0 |
+|---|---|---|---|---|
+| `1008_0`, ohne Versatz | 0,06 | 1,59 | 1,59 | 9 von 2601 |
+| `1008_0`, mit Versatz | 0,05 | 0,45 | 1,29 | 5 von 2601 |
+| `1021_5`, ohne Versatz | 0,37 | 6,07 | – | 119 von 2223 |
+| `1021_5`, mit Versatz | 0,24 | 0,72 | – | 14 von 2223 |
+
+Flecken hier als Maximum der Umgebung; die Vergleichszahl des alten Stands für `1021_5` ist 0,98.
+
+Eingebaut mit ungerundeten Punkten, Serie über das Programmfenster, `1021_5` mit Versatz: Median 0,07 (alter
+Stand 0,20), Fleck 0,84, größter Wert 1,05, Fenster über 1,0: 1 von 2223 (25). Der Kontrast im Stack liegt 1,9 %
+unter dem alten Stand. In den Serien selbst (Spanne der 2×2-Mittel, 40 Frames) liegt die neue mit 17,56 beim
+Original (17,59), die alte lag mit 17,78 darüber.
+
+Der Knopf „RGB corrected“ zeigt beim Halten dieselbe Farbansicht wie „RGB“ ohne den gemessenen Versatz,
+unabhängig vom Kästchen und ohne Kurven, damit nur der Versatz den Unterschied macht.
 
 Nicht enthalten: Ausgleich der Farbdrift über das Bildfeld (etwa 0,1 Stufen pro 100 Pixel, im Stack kein
-klares Gitter), Messung je Einzelframe, feinere Stützpunkte bei 8 Bit und Schärfeunterschied von Blau.
+klares Gitter) und Schärfeunterschied von Blau.
 Im Farb-Stack entfernt das Entbayern von AutoStakkert das Muster weitgehend auch ohne das Werkzeug,
 RGBAlign gleicht dort den Versatz aus.
 

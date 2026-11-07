@@ -5,277 +5,136 @@ using AntiBayer.Core.Imaging;
 namespace AntiBayer.Core;
 
 public sealed record MeasuredCurves(
-    IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> Points, int FramesUsed, int CellsUsed);
+    IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> Points, int FramesUsed, long SamplesUsed);
 
-/// <summary>Derives per-filter curve points from the series itself: each filter is compared with the mean of its 2x2 cell.</summary>
+/// <summary>Derives per-filter curve points from the series itself.</summary>
 public static class CurveMeasurement
 {
     public const int MaxFrames = 40;
     public const int Bins = 12;
-    public const int MinCellsPerPoint = 100;
-    public const int RegionBins = 6;
     public const int MinSamplesPerPoint = 200;
-    /// <summary>Points of a local measurement count only below this share of the surface brightness.</summary>
-    public const double SurfaceFraction = 0.9;
-    private const int SurfaceFrames = 5;
+    private const int Margin = 2;
 
     private static readonly BayerFilter[] Filters =
         { BayerFilter.Red, BayerFilter.Green1, BayerFilter.Green2, BayerFilter.Blue };
 
+    /// <summary>
+    /// Compares every pixel with the [1 2 1]x[1 2 1] mean around it, frame by frame. That mean holds every filter in its
+    /// proper share and is centred on the pixel, so a one-sided slope such as the limb does not look like colour; single
+    /// frames keep image drift from blurring brightness levels that are rare in the series.
+    /// </summary>
     public static MeasuredCurves Measure(IFrameSource source, BayerPattern pattern)
     {
         if (pattern == BayerPattern.None)
             throw new ArgumentException("Curves can only be measured for a Bayer pattern.", nameof(pattern));
 
         var info = source.Info;
-        int w = info.Width, h = info.Height;
-        int white = info.WhiteLevel;
+        int w = info.Width, h = info.Height, white = info.WhiteLevel;
         int frames = Math.Min(info.FrameCount, MaxFrames);
 
         var points = new Dictionary<BayerFilter, List<CurvePoint>>();
         foreach (var f in Filters) points[f] = new List<CurvePoint>();
+        if (frames <= 0 || w <= 2 * Margin || h <= 2 * Margin) return Result(points, Math.Max(frames, 0), 0);
 
-        int cw = w / 2, ch = h / 2;
-        if (frames <= 0 || cw == 0 || ch == 0)
-            return Result(points, Math.Max(frames, 0), 0);
-
-        var sum = new double[w * h];
-        var over = new bool[w * h];
-        var buffer = new ushort[w * h];
-        for (int i = 0; i < frames; i++)
-        {
-            source.ReadFrame((int)((long)i * info.FrameCount / frames), buffer);
-            for (int p = 0; p < sum.Length; p++)
-            {
-                ushort v = buffer[p];
-                sum[p] += v;
-                if (v >= white) over[p] = true;
-            }
-        }
-
-        // Cells without a clipped pixel: reference and mean per filter.
-        var refs = new List<double>();
-        var perFilter = new List<double>(); // four values per cell, indexed by (int)BayerFilter
-        for (int cy = 0; cy < ch; cy++)
-            for (int cx = 0; cx < cw; cx++)
-            {
-                int x0 = cx * 2, y0 = cy * 2;
-                int i00 = y0 * w + x0, i10 = i00 + 1, i01 = i00 + w, i11 = i01 + 1;
-                if (over[i00] || over[i10] || over[i01] || over[i11]) continue;
-                double[] m = new double[4];
-                m[(int)Bayer.FilterAt(pattern, x0, y0)] = sum[i00] / frames;
-                m[(int)Bayer.FilterAt(pattern, x0 + 1, y0)] = sum[i10] / frames;
-                m[(int)Bayer.FilterAt(pattern, x0, y0 + 1)] = sum[i01] / frames;
-                m[(int)Bayer.FilterAt(pattern, x0 + 1, y0 + 1)] = sum[i11] / frames;
-                refs.Add((m[0] + m[1] + m[2] + m[3]) / 4);
-                perFilter.AddRange(m);
-            }
-
-        int cells = refs.Count;
-        if (cells < MinCellsPerPoint) return Result(points, frames, cells);
-
-        double min = double.MaxValue, max = double.MinValue;
-        foreach (var r in refs) { if (r < min) min = r; if (r > max) max = r; }
-
-        var binCount = new int[Bins];
-        var binRef = new double[Bins];
-        var binFilter = new double[Bins, 4];
-        for (int c = 0; c < cells; c++)
-        {
-            int b = max > min ? Math.Min(Bins - 1, (int)((refs[c] - min) / (max - min) * Bins)) : 0;
-            binCount[b]++;
-            binRef[b] += refs[c];
-            for (int k = 0; k < 4; k++) binFilter[b, k] += perFilter[c * 4 + k];
-        }
-
-        EmitPoints(points, white, binCount, binRef, binFilter, MinCellsPerPoint);
-        return Result(points, frames, cells);
-    }
-
-    /// <summary>Walks the classes from dark to bright, collects until enough samples are there and emits one point per filter.</summary>
-    private static void EmitPoints(Dictionary<BayerFilter, List<CurvePoint>> points, int white,
-        int[] binCount, double[] binRef, double[,] binFilter, int minCount)
-    {
-        var cRef = 0.0;
-        var cCount = 0;
-        var cFilter = new double[4];
-        for (int b = 0; b < binCount.Length; b++)
-        {
-            cCount += binCount[b];
-            cRef += binRef[b];
-            for (int k = 0; k < 4; k++) cFilter[k] += binFilter[b, k];
-            if (cCount < minCount) continue;
-
-            long newValue = (long)Math.Round(cRef / cCount, MidpointRounding.AwayFromZero);
-            foreach (var f in Filters)
-            {
-                long orig = (long)Math.Round(cFilter[(int)f] / cCount, MidpointRounding.AwayFromZero);
-                if (orig == 0 || orig >= white || newValue > ushort.MaxValue) continue;
-                var list = points[f];
-                if (list.Count > 0 && (orig <= list[^1].Original || newValue < list[^1].New)) continue;
-                list.Add(new CurvePoint((ushort)orig, (ushort)newValue));
-            }
-            cRef = 0; cCount = 0;
-            Array.Clear(cFilter);
-        }
-    }
-
-    /// <summary>
-    /// Measures within a rectangle: per frame and 2x2 cell one sample (cell mean L, smoothed brightness S over 3x3 cells),
-    /// classes by S, so a dark patch is measured against its own brightness and frames may drift.
-    /// </summary>
-    public static MeasuredCurves MeasureRegion(IFrameSource source, BayerPattern pattern, PixelRect region)
-    {
-        if (pattern == BayerPattern.None)
-            throw new ArgumentException("Curves can only be measured for a Bayer pattern.", nameof(pattern));
-
-        var info = source.Info;
-        int w = info.Width, h = info.Height;
-        int white = info.WhiteLevel;
-        int frames = Math.Min(info.FrameCount, MaxFrames);
-
-        var points = new Dictionary<BayerFilter, List<CurvePoint>>();
-        foreach (var f in Filters) points[f] = new List<CurvePoint>();
-
-        int imgCw = w / 2, imgCh = h / 2;
-        int cx0 = Math.Max(0, (region.X + 1) / 2), cy0 = Math.Max(0, (region.Y + 1) / 2);
-        int cx1 = Math.Min(imgCw, (region.X + region.Width) / 2), cy1 = Math.Min(imgCh, (region.Y + region.Height) / 2);
-        if (frames <= 0 || cx1 <= cx0 || cy1 <= cy0)
-            return Result(points, Math.Max(frames, 0), 0);
-
-        // Window of cells: region plus one cell around it, limited to the image.
-        int wx0 = Math.Max(0, cx0 - 1), wy0 = Math.Max(0, cy0 - 1);
-        int wx1 = Math.Min(imgCw, cx1 + 1), wy1 = Math.Min(imgCh, cy1 + 1);
-        int ww = wx1 - wx0, wh = wy1 - wy0;
+        var filterAt = new int[w * h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                filterAt[y * w + x] = (int)Bayer.FilterAt(pattern, x, y);
 
         var buffer = new ushort[w * h];
-        var lum = new double[ww * wh];
-        var ok = new bool[ww * wh];
-        var sL = new List<double>();
-        var sS = new List<double>();
-        var sF = new List<double>(); // four values per sample, indexed by (int)BayerFilter
+        var row = new double[w * h];
+        var values = new double[w * h];
+        var boxRow = new double[w * h];
+        var classOf = new double[w * h];
+        var count = new long[4, Bins];
+        var sumValue = new double[4, Bins];
+        var sumRef = new double[4, Bins];
+        double lo = 0, scale = 0;
+        long samples = 0;
 
         for (int i = 0; i < frames; i++)
         {
             source.ReadFrame((int)((long)i * info.FrameCount / frames), buffer);
-            for (int cy = 0; cy < wh; cy++)
-                for (int cx = 0; cx < ww; cx++)
+            if (i == 0) (lo, scale) = ClassRange(buffer);
+
+            for (int p = 0; p < buffer.Length; p++) values[p] = buffer[p];
+            for (int y = 0; y < h; y++)
+            {
+                GreenField.RunningMean(values, y * w, 1, w, boxRow);
+                for (int x = 1; x < w - 1; x++)
                 {
-                    int x0 = (wx0 + cx) * 2, y0 = (wy0 + cy) * 2;
-                    int i00 = y0 * w + x0, i01 = i00 + w;
-                    ushort a = buffer[i00], b = buffer[i00 + 1], c = buffer[i01], d = buffer[i01 + 1];
-                    int k = cy * ww + cx;
-                    ok[k] = a < white && b < white && c < white && d < white;
-                    lum[k] = (a + b + c + d) / 4.0;
+                    int p = y * w + x;
+                    row[p] = (buffer[p - 1] + 2.0 * buffer[p] + buffer[p + 1]) / 4;
                 }
-            for (int cy = cy0; cy < cy1; cy++)
-                for (int cx = cx0; cx < cx1; cx++)
+            }
+            // The class comes from a plain 5x5 mean: any pixel weighs the same in it, so its noise moves
+            // the pixel and the reference alike and does not flatten the curve.
+            for (int x = 0; x < w; x++) GreenField.RunningMean(boxRow, x, w, h, classOf);
+
+            for (int y = Margin; y < h - Margin; y++)
+                for (int x = Margin; x < w - Margin; x++)
                 {
-                    int k = (cy - wy0) * ww + (cx - wx0);
-                    if (!ok[k]) continue;
-                    double acc = 0; int n = 0;
-                    for (int dy = -1; dy <= 1; dy++)
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            int nx = cx + dx - wx0, ny = cy + dy - wy0;
-                            if (nx < 0 || ny < 0 || nx >= ww || ny >= wh) continue;
-                            int nk = ny * ww + nx;
-                            if (!ok[nk]) continue;
-                            acc += lum[nk]; n++;
-                        }
-                    int px = cx * 2, py = cy * 2, p0 = py * w + px;
-                    var m = new double[4];
-                    m[(int)Bayer.FilterAt(pattern, px, py)] = buffer[p0];
-                    m[(int)Bayer.FilterAt(pattern, px + 1, py)] = buffer[p0 + 1];
-                    m[(int)Bayer.FilterAt(pattern, px, py + 1)] = buffer[p0 + w];
-                    m[(int)Bayer.FilterAt(pattern, px + 1, py + 1)] = buffer[p0 + w + 1];
-                    sL.Add(lum[k]);
-                    sS.Add(acc / n);
-                    sF.AddRange(m);
+                    int p = y * w + x;
+                    if (AnyClipped(buffer, p, w, white)) continue;
+                    double reference = (row[p - w] + 2 * row[p] + row[p + w]) / 4;
+                    int bin = Math.Clamp((int)((classOf[p] - lo) * scale), 0, Bins - 1);
+                    int k = filterAt[p];
+                    count[k, bin]++;
+                    sumValue[k, bin] += buffer[p];
+                    sumRef[k, bin] += reference;
+                    samples++;
                 }
         }
 
-        int samples = sL.Count;
-        if (samples < MinSamplesPerPoint) return Result(points, frames, samples);
-
-        double min = double.MaxValue, max = double.MinValue;
-        foreach (var s in sS) { if (s < min) min = s; if (s > max) max = s; }
-
-        var binCount = new int[RegionBins];
-        var binRef = new double[RegionBins];
-        var binFilter = new double[RegionBins, 4];
-        for (int c = 0; c < samples; c++)
-        {
-            int b = max > min ? Math.Min(RegionBins - 1, (int)((sS[c] - min) / (max - min) * RegionBins)) : 0;
-            binCount[b]++;
-            binRef[b] += sL[c];
-            for (int k = 0; k < 4; k++) binFilter[b, k] += sF[c * 4 + k];
-        }
-        EmitPoints(points, white, binCount, binRef, binFilter, MinSamplesPerPoint);
+        foreach (var f in Filters) EmitPoints(points[f], (int)f, white, count, sumValue, sumRef);
         return Result(points, frames, samples);
     }
 
-    /// <summary>
-    /// Brightness of the object's surface: the median of everything brighter than half the top value,
-    /// taken from a few frames. The top value is the 99.9th percentile, so hot pixels do not count.
-    /// </summary>
-    public static double SurfaceLevel(IFrameSource source)
+    private static bool AnyClipped(ushort[] frame, int p, int w, int white)
     {
-        var info = source.Info;
-        int frames = Math.Min(info.FrameCount, SurfaceFrames);
-        if (frames <= 0) return 0;
-        var histogram = new long[65536];
-        var buffer = new ushort[info.Width * info.Height];
-        long total = 0;
-        for (int i = 0; i < frames; i++)
-        {
-            source.ReadFrame((int)((long)i * info.FrameCount / frames), buffer);
-            foreach (ushort v in buffer) histogram[v]++;
-            total += buffer.Length;
-        }
-
-        long seen = 0;
-        int top = 0;
-        for (int v = 0; v < histogram.Length; v++)
-        {
-            seen += histogram[v];
-            if (seen * 1000 >= total * 999) { top = v; break; }
-        }
-
-        int from = top / 2;
-        long bright = 0;
-        for (int v = from; v <= top; v++) bright += histogram[v];
-        seen = 0;
-        for (int v = from; v <= top; v++)
-        {
-            seen += histogram[v];
-            if (seen * 2 >= bright) return v;
-        }
-        return top;
+        for (int q = p - w; q <= p + w; q += w)
+            if (frame[q - 1] >= white || frame[q] >= white || frame[q + 1] >= white) return true;
+        return false;
     }
 
-    /// <summary>
-    /// <see cref="MeasureRegion"/> without the points at surface brightness. A dark feature is measured here, but its
-    /// surroundings must not change the curve for the whole surface, where the measurement of the whole series is the better one.
-    /// </summary>
-    public static MeasuredCurves MeasureRegionBelowSurface(IFrameSource source, BayerPattern pattern, PixelRect region)
+    /// <summary>The range of the classes, from the first frame; the outermost values do not count, so hot pixels cannot stretch it.</summary>
+    private static (double Low, double Scale) ClassRange(ushort[] frame)
     {
-        var measured = MeasureRegion(source, pattern, region);
-        double limit = SurfaceLevel(source) * SurfaceFraction;
-        var kept = new Dictionary<BayerFilter, IReadOnlyList<CurvePoint>>();
-        foreach (var kv in measured.Points)
-        {
-            var below = new List<CurvePoint>();
-            foreach (var p in kv.Value) if (p.New < limit) below.Add(p);
-            kept[kv.Key] = below;
-        }
-        return new MeasuredCurves(kept, measured.FramesUsed, measured.CellsUsed);
+        var sorted = (ushort[])frame.Clone();
+        Array.Sort(sorted);
+        int skip = sorted.Length / 10000;
+        double low = sorted[skip], high = sorted[sorted.Length - 1 - skip];
+        return (low, high > low ? Bins / (high - low) : 0);
     }
 
-    private static MeasuredCurves Result(Dictionary<BayerFilter, List<CurvePoint>> points, int frames, int cells)
+    /// <summary>Walks the classes from dark to bright, collects until enough samples are there and emits one point.</summary>
+    private static void EmitPoints(List<CurvePoint> list, int k, int white, long[,] count, double[,] sumValue, double[,] sumRef)
+    {
+        long n = 0;
+        double value = 0, reference = 0;
+        for (int b = 0; b < Bins; b++)
+        {
+            n += count[k, b];
+            value += sumValue[k, b];
+            reference += sumRef[k, b];
+            if (n < MinSamplesPerPoint) continue;
+
+            double meanValue = value / n, meanRef = reference / n;
+            n = 0; value = 0; reference = 0;
+
+            // Original is a whole grey value. The curve rises by about 1, so its rounding is carried over to New.
+            long original = (long)Math.Round(meanValue, MidpointRounding.AwayFromZero);
+            double newValue = Math.Round(Math.Clamp(meanRef + (original - meanValue), 0, white), 2);
+            if (original == 0 || original >= white) continue;
+            if (list.Count > 0 && (original <= list[^1].Original || newValue < list[^1].New)) continue;
+            list.Add(new CurvePoint((ushort)original, newValue));
+        }
+    }
+
+    private static MeasuredCurves Result(Dictionary<BayerFilter, List<CurvePoint>> points, int frames, long samples)
     {
         var dict = new Dictionary<BayerFilter, IReadOnlyList<CurvePoint>>();
         foreach (var kv in points) dict[kv.Key] = kv.Value;
-        return new MeasuredCurves(dict, frames, cells);
+        return new MeasuredCurves(dict, frames, samples);
     }
 }

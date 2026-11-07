@@ -74,7 +74,7 @@ public static class CpsFile
             foreach (var p in set.Confirmed(f))
                 curve.Add(new XElement("Point",
                     new XAttribute("original", p.Original.ToString(Inv)),
-                    new XAttribute("new", p.New.ToString(Inv))));
+                    new XAttribute("new", p.New.ToString("R", Inv))));
             curves.Add(curve);
         }
 
@@ -147,7 +147,7 @@ public static class CpsFile
             foreach (var pt in curve.Elements().Where(e => e.Name.LocalName == "Point"))
             {
                 var p = new CurvePoint(ParseValue((string?)pt.Attribute("original"), max),
-                                       ParseValue((string?)pt.Attribute("new"), max));
+                                       ParseNew((string?)pt.Attribute("new"), max));
                 AddPoint(set, f, p);
             }
         }
@@ -196,6 +196,13 @@ public static class CpsFile
         if (!int.TryParse(text, NumberStyles.None, Inv, out var v) || v > max)
             throw new CpsFormatException("Curve point out of range.");
         return (ushort)v;
+    }
+
+    private static double ParseNew(string? text, int max)
+    {
+        if (!double.TryParse(text, NumberStyles.AllowDecimalPoint, Inv, out var v) || !double.IsFinite(v) || v > max)
+            throw new CpsFormatException("Curve point out of range.");
+        return v;
     }
 
     private static void AddPoint(ParameterSet set, BayerFilter f, CurvePoint p)

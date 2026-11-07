@@ -337,7 +337,6 @@ public partial class MainForm : Form
         }
         labelRed.Text = none ? "All" : "Red";
         buttonMeasureCurves.Enabled = Loaded && !none;
-        buttonMeasureHere.Enabled = Loaded && !none && previewRect != null;
         buttonViewRgb.Enabled = Loaded && !none && previewRect != null;
     }
 
@@ -491,6 +490,7 @@ public partial class MainForm : Form
     {
         buttonMeasureShift.Enabled = Loaded && set.Pattern != BayerPattern.None && set.HasConfirmedPoints;
         checkBoxColorShift.Enabled = set?.MeasuredShift is { WorthCorrecting: true };
+        buttonViewRgbShift.Enabled = checkBoxColorShift.Enabled && previewRect != null;
         WithoutEvents(() => checkBoxColorShift.Checked = set?.ShiftEnabled == true);
     }
 
@@ -692,6 +692,20 @@ public partial class MainForm : Form
             ColorPreview.ToRgb(rawFrame, info.Width, info.Height, set.Pattern, r, frameMax), r.Width, r.Height));
     }
 
+    /// <summary>
+    /// While held, the same colour view with the measured shift taken out, ticked or not, so that the two
+    /// views can be compared. Only the shift differs: the curves stay out of both.
+    /// </summary>
+    private void buttonViewRgbShift_MouseDown(object? sender, MouseEventArgs e)
+    {
+        if (!Loaded || set.Pattern == BayerPattern.None || previewRect is not PixelRect r || set.MeasuredShift is not ColorShift shift) return;
+        var info = source.Info;
+        var corrected = (ushort[])rawFrame.Clone();
+        new ColorShiftCorrector(set.Pattern, info.Width, info.Height, shift, info.WhiteLevel).Apply(rawFrame, corrected, null);
+        SetPreviewBitmap(FrameBitmap.ToColorBitmap(
+            ColorPreview.ToRgb(corrected, info.Width, info.Height, set.Pattern, r, frameMax), r.Width, r.Height));
+    }
+
     // ---- Curve points ----
 
     private void HistogramValueChanged(object? sender, EventArgs e)
@@ -714,7 +728,7 @@ public partial class MainForm : Form
         {
             var point = new CurvePoint((ushort)row.OriginalValue.Value, (ushort)row.NewValue.Value);
             set.SetConfirmed(FilterOf(row), point);
-            message.Append(message.Length == 0 ? "Set " : ", ").Append($"{FilterOf(row)} {point.Original}->{point.New}");
+            message.Append(message.Length == 0 ? "Set " : ", ").Append($"{FilterOf(row)} {point.Original}->{point.New:0.##}");
         }
         if (chosen.Any(r => (ushort)r.OriginalValue.Value == source.Info.WhiteLevel))
             message.Append(". The white level itself always stays fixed.");
@@ -789,48 +803,6 @@ public partial class MainForm : Form
         RefreshCurvesAndPreview();
     }
 
-    private void buttonMeasureHere_Click(object? sender, EventArgs e)
-    {
-        if (!Loaded || set.Pattern == BayerPattern.None || previewRect is not PixelRect r) return;
-        bool hadPoints = set.HasConfirmedPoints;
-
-        MeasuredCurves measured;
-        var oldCursor = Cursor;
-        Cursor = Cursors.WaitCursor;
-        try
-        {
-            measured = CurveMeasurement.MeasureRegionBelowSurface(source, set.Pattern, r);
-        }
-        catch (IOException ex)
-        {
-            statusMessage = "Could not measure the crop: " + ex.Message;
-            RefreshStatus();
-            return;
-        }
-        finally
-        {
-            Cursor = oldCursor;
-        }
-
-        if (measured.Points.Values.All(l => l.Count == 0))
-        {
-            statusMessage = measured.CellsUsed >= CurveMeasurement.MinSamplesPerPoint
-                ? "The crop lies at surface brightness, where the measurement of the whole series counts. The curves are unchanged."
-                : "No curve points could be measured in the crop (too few usable pixels). The curves are unchanged.";
-            RefreshStatus();
-            return;
-        }
-
-        int replaced = set.MergeMeasured(measured.Points);
-        var counts = rows.Select(FilterOf).Distinct()
-            .Select(f => $"{f} {(measured.Points.TryGetValue(f, out var l) ? l.Count : 0)}");
-        statusMessage = $"Measured in the crop from {measured.FramesUsed} frames: {string.Join(", ", counts)} points, {replaced} existing points replaced.";
-        if (!hadPoints) statusMessage += " Measuring the whole series with \"Measure curves\" first usually makes sense.";
-        ClearHighlights();
-        SyncNewFieldsToCurve();
-        RefreshCurvesAndPreview();
-    }
-
     private void buttonMeasureShift_Click(object? sender, EventArgs e)
     {
         if (!Loaded || set.Pattern == BayerPattern.None || !set.HasConfirmedPoints) return;
@@ -862,7 +834,7 @@ public partial class MainForm : Form
         {
             string values = $"red {Number(measured.RedX)} / {Number(measured.RedY)}, blue {Number(measured.BlueX)} / {Number(measured.BlueY)} pixels";
             statusMessage = measured.WorthCorrecting
-                ? $"Color shift: {values}. Tick the box to correct it, for stacks in greyscale; in a color stack RGB alignment does this."
+                ? $"Color shift: {values}. Hold \"RGB\" and \"RGB corrected\" to compare. Tick the box to correct it, for stacks in greyscale; in a color stack RGB alignment does this."
                 : $"Color shift: {values}. Too small to need a correction, so this series stays as it is.";
         }
         RefreshCurvesAndPreview();
@@ -905,7 +877,7 @@ public partial class MainForm : Form
                 {
                     entry.Filter.ToString(),
                     entry.Point.Original.ToString(CultureInfo.CurrentCulture),
-                    entry.Point.New.ToString(CultureInfo.CurrentCulture),
+                    entry.Point.New.ToString("0.##", CultureInfo.CurrentCulture),
                     entry.IsPreview ? "●" : "",
                 });
                 listViewStrongPointList.Items.Add(item);
@@ -1011,7 +983,7 @@ public partial class MainForm : Form
     private void PlaceHistograms()
     {
         int columnLeft = _pbWorkingImage.Left;
-        int columnTop = buttonMeasureHere.Bottom + 5;
+        int columnTop = buttonMeasureShift.Bottom + 5;
         int bottom = textBoxStatus.Top - 5;
         int width = Math.Max(100, textBoxStatus.Right - columnLeft - 6);
         int total = Math.Max(0, bottom - columnTop);
