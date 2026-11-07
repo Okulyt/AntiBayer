@@ -5,7 +5,7 @@ namespace AntiBayer.Core.Imaging;
 
 public static class ImageFiles
 {
-    private static readonly string[] Extensions = { ".ser", ".tif", ".tiff", ".png" };
+    private static readonly string[] Extensions = { ".ser", ".tif", ".tiff", ".png", ".fit", ".fits", ".fts" };
 
     public static bool IsSupportedExtension(string path) =>
         Array.IndexOf(Extensions, Path.GetExtension(path).ToLowerInvariant()) >= 0;
@@ -18,7 +18,10 @@ public static class ImageFiles
             case ".tif":
             case ".tiff":
             case ".png": return new WicSource(path);
-            default: throw new UnsupportedImageException("This file type is not supported. Use .ser, .tif, .tiff or .png.");
+            case ".fit":
+            case ".fits":
+            case ".fts": return new FitsSource(path);
+            default: throw new UnsupportedImageException("This file type is not supported. Use .ser, .tif, .tiff, .png, .fit, .fits or .fts.");
         }
     }
 
@@ -26,6 +29,7 @@ public static class ImageFiles
     {
         SerSource ser => new SerSink(ser, targetPath),
         WicSource wic => new WicSink(wic, targetPath),
+        FitsSource fits => new FitsSink(fits, targetPath),
         _ => throw new UnsupportedImageException("This source type cannot be saved."),
     };
 }

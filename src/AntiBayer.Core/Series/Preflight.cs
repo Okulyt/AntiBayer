@@ -43,7 +43,7 @@ public static class Preflight
         {
             if (!ImageFiles.IsSupportedExtension(file))
             {
-                issues.Add(new PreflightIssue(file, "This is not a supported image file (.ser, .tif, .tiff, .png).", true));
+                issues.Add(new PreflightIssue(file, "This is not a supported image file (.ser, .tif, .tiff, .png, .fit, .fits, .fts).", true));
                 continue;
             }
 

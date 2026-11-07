@@ -103,7 +103,7 @@ public partial class MainForm : Form
             CheckPathExists = true,
             Multiselect = false,
             Title = "Open image file...",
-            Filter = "Images (*.ser;*.tif;*.tiff;*.png)|*.ser;*.tif;*.tiff;*.png|All files (*.*)|*.*",
+            Filter = "Images (*.ser;*.tif;*.tiff;*.png;*.fit;*.fits;*.fts)|*.ser;*.tif;*.tiff;*.png;*.fit;*.fits;*.fts|All files (*.*)|*.*",
             ValidateNames = true,
             InitialDirectory = StartFolder(),
         };
@@ -949,7 +949,9 @@ public partial class MainForm : Form
         string stem = textBoxFilenamePrefix.Text + Path.GetFileNameWithoutExtension(info.Path) + textBoxFilenameSuffix.Text
             + (ser ? "_frame" + (frameIndex + 1) : "");
         string ext = ser ? ".tif" : Path.GetExtension(info.Path).ToLowerInvariant();
-        string filter = ext == ".png" ? "PNG image (*.png)|*.png" : "TIFF image (*.tif;*.tiff)|*.tif;*.tiff";
+        bool fits = info.Format == ImageFormat.Fits;
+        string filter = fits ? "FITS image (*.fit;*.fits;*.fts)|*.fit;*.fits;*.fts"
+            : ext == ".png" ? "PNG image (*.png)|*.png" : "TIFF image (*.tif;*.tiff)|*.tif;*.tiff";
 
         using var dialog = new SaveFileDialog
         {
@@ -966,10 +968,11 @@ public partial class MainForm : Form
 
         string target = dialog.FileName;
         string targetExt = Path.GetExtension(target).ToLowerInvariant();
-        bool extOk = ext == ".png" ? targetExt == ".png" : targetExt is ".tif" or ".tiff";
+        bool extOk = fits ? targetExt is ".fit" or ".fits" or ".fts"
+            : ext == ".png" ? targetExt == ".png" : targetExt is ".tif" or ".tiff";
         if (!extOk)
         {
-            MessageBox.Show(this, "The file name must end in " + (ext == ".png" ? ".png" : ".tif or .tiff") + ".",
+            MessageBox.Show(this, "The file name must end in " + (fits ? ".fit, .fits or .fts" : ext == ".png" ? ".png" : ".tif or .tiff") + ".",
                 AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }

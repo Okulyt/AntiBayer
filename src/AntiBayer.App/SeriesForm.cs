@@ -57,7 +57,7 @@ public partial class SeriesForm : Form
             CheckFileExists = true,
             Multiselect = true,
             Title = "Add image files...",
-            Filter = "Images (*.ser;*.tif;*.tiff;*.png)|*.ser;*.tif;*.tiff;*.png",
+            Filter = "Images (*.ser;*.tif;*.tiff;*.png;*.fit;*.fits;*.fts)|*.ser;*.tif;*.tiff;*.png;*.fit;*.fits;*.fts",
         };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         foreach (var f in dialog.FileNames)
