@@ -153,6 +153,14 @@ Wert des Frames, damit 12-Bit-Daten nicht schwarz wirken). Das wirkt sich nur au
 nie auf die Daten. Pixel-Abfragen und Histogramme arbeiten mit den echten Werten; Histogramme
 werden für 16 Bit in 256 Klassen zusammengefasst.
 
+Ergänzung nach der Sichtprüfung (2026-11-07, vom Nutzer freigegeben): Der Knopf „Measure curves“
+misst die Kurven aus bis zu 40 über die Serie verteilten Frames. Je Farbe entstehen bis zu 12
+Stützpunkte, die den Filterwert auf das Mittel seiner 2×2-Zelle abbilden. Übersteuerte Zellen zählen
+nicht mit. Die Punkte sind normale bestätigte Stützpunkte und lassen sich von Hand ändern oder löschen.
+Der Knopf läuft nur auf Anforderung, ersetzt vorhandene Punkte nur nach Rückfrage und warnt bei
+Filter=RGB, weil er echte Farbunterschiede entfernen würde. Beim Klick in die Vorschau beginnt das
+Feld „neu“ beim aktuellen Kurvenwert, damit die erste Änderung nicht springt.
+
 ## Parametersätze (.cps)
 
 - Alte `.cps`-Dateien bleiben lesbar. Sie enthalten die XML-Namensräume `.../AntiBeyer` und

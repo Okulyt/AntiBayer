@@ -538,6 +538,74 @@ Vorausgewählt ist die geladene Datei, weitere per Dateiauswahl (Filter aus unte
 
 Der Nutzer sucht jetzt echte 462C-SER-Dateien aus seiner Sicherung heraus: Weißlicht-Sonne, NIR 680/742 nm, ggf. 8 Bit, je kurz, mit `.txt`; optional UV. Gemeinsam prüfen: Laden, Weißwert, Muster, Sichtbarkeit des Musters in der Vorschau, Korrektur, Ergebnis im Stacker. Erkenntnisse vor den restlichen Tasks einarbeiten. Nicht ohne Rückmeldung weitermachen.
 
+### Task 11a: Kurven aus der Serie messen
+
+Grund: Sichtprüfung vom 2026-11-07. Von Hand ist das Muster schwer zu entfernen. Es ist je Farbe stabil über Ort und Zeit, hängt aber von der Helligkeit ab. Der Nutzer hat den Knopf freigegeben; Nachjustieren von Hand muss möglich bleiben.
+
+**Files:**
+- Create: `src/AntiBayer.Core/CurveMeasurement.cs`, `tests/AntiBayer.Tests/CurveMeasurementTests.cs`
+- Modify: `src/AntiBayer.Core/ParameterSet.cs`, `tests/AntiBayer.Tests/ParameterSetTests.cs`, `src/AntiBayer.App/MainForm.cs`, `src/AntiBayer.App/MainForm.Designer.cs`
+
+**Interfaces:**
+- Consumes: `IFrameSource` (`Info`, `ReadFrame(int, ushort[])`), `Bayer.FilterAt`, `CurveTable`, `ParameterSet`.
+- Produces:
+  - `public sealed record MeasuredCurves(IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> Points, int FramesUsed, int CellsUsed);`
+  - `public static class CurveMeasurement { public const int MaxFrames = 40; public const int Bins = 12; public const int MinCellsPerPoint = 100; public static MeasuredCurves Measure(IFrameSource source, BayerPattern pattern); }`
+  - `ParameterSet.ReplaceConfirmed(IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> points)`: verwirft alle bestätigten Punkte und die Vorschau, setzt dann die übergebenen.
+
+**Verfahren `Measure` (so festgelegt, am 2026-11-07 an echten Dateien erprobt):**
+1. `pattern == None` wirft `ArgumentException`.
+2. `min(FrameCount, MaxFrames)` Frames gleichmäßig über die Serie: Index `i * FrameCount / anzahl`. Je Pixel mitteln (double); je Pixel merken, ob es in irgendeinem Frame `>= WhiteLevel` war.
+3. Zellen: 2×2 ab geraden Koordinaten; eine ungerade letzte Zeile/Spalte entfällt. Eine Zelle mit einem solchen übersteuerten Pixel entfällt ganz. Referenz einer Zelle = Mittel ihrer vier gemittelten Pixel.
+4. `Bins` gleich breite Klassen von minimaler bis maximaler Referenz der verbliebenen Zellen. Von dunkel nach hell Zellen sammeln; sobald die Sammlung `>= MinCellsPerPoint` Zellen hat, ergibt sie je Filter einen Punkt und beginnt neu. Eine zu kleine Restsammlung am hellen Ende entfällt. Alle Zellen in einer Klasse, wenn min == max.
+5. Punkt je Filter: `Original = round(Mittel des Filters)`, `New = round(Mittel der Referenz)`. Verwerfen, wenn `Original == 0` oder `Original >= WhiteLevel`, wenn `Original` nicht größer ist als beim vorigen behaltenen Punkt dieses Filters oder wenn `New` kleiner ist als dort.
+6. `CellsUsed` = verbliebene Zellen. Zu wenig Zellen ergibt leere Listen, keine Ausnahme.
+Die Kurve läuft weiter durch (0,0) und (Weiß,Weiß), das erledigt `CurveTable.Build`.
+
+Die Lesefehler der Quelle laufen durch; die Oberfläche fängt sie ab. Lesen geschieht synchron mit eigenem Puffer: `rawFrame` und der angezeigte Frame ändern sich nicht.
+
+- [ ] **Step 1: Tests schreiben (fehlschlagend), mit einer kleinen `IFrameSource`-Attrappe im Testfile**
+
+Mit deutschen Testnamen wie im Projekt:
+- Bekannte nichtlineare Antwort je Filter (z. B. R = lum*1.08−0,0001·lum², B entsprechend tiefer, G1/G2 = lum) über einen Helligkeitsverlauf bis ca. 220 (8 Bit) bzw. 56000 (16 Bit): Nach `FrameCorrector` mit den gemessenen Punkten sinkt die mittlere Filterabweichung je Helligkeitsband auf unter 1 Stufe (8 Bit) bzw. unter 0,1 % (16 Bit), vorher war sie deutlich größer.
+- 1000 Frames: genau 40 verschiedene Lesezugriffe, erster Index 0, letzter 975. 3 Frames: alle drei, `FramesUsed == 3`.
+- Übersteuerte Zelle: Zellen mit R = Weißwert in nur einem Frame zählen nicht zu `CellsUsed` und verändern die Punkte nicht.
+- Gleichmäßiges Bild: keine Ausnahme, höchstens ein Punkt je Filter. Bild mit weniger als 100 Zellen: leere Listen. Ungerade Breite und Höhe: läuft, `CellsUsed` passt.
+- `None` wirft. Die Muster GBRG und RGGB ordnen die Punkte der richtigen Farbe zu.
+- `ReplaceConfirmed`: alte Punkte und Vorschau sind weg, danach lässt sich ein Punkt per `SetConfirmed` überschreiben und `ConfirmedCurveValue` liefert den neuen Wert (Nachjustieren).
+
+- [ ] **Step 2: Laufen lassen, Fehlschlag sehen**
+
+`dotnet test tests/AntiBayer.Tests/AntiBayer.Tests.csproj`
+
+- [ ] **Step 3: Kern umsetzen und Tests grün**
+
+- [ ] **Step 4: Oberfläche**
+
+- Knopf `buttonMeasureCurves`, Text „Measure curves“, neben „Delete selected values“ bei (715, 292), 143×23, gleiche Verankerung, vor dem Laden gesperrt. In `LoadFile` und `ApplyRowStates` schalten: nur bei geladener Datei und Muster ungleich None frei. Vorher prüfen, dass dort nichts anderes liegt; sonst einen freien Platz in dieser Zeile nehmen.
+- `buttonMeasureCurves_Click` in `MainForm.cs`, der Reihe nach:
+  - Bei `IsColorFilter(Capture.Filter)` Rückfrage auf Englisch: Das könne eine Farbaufnahme sein, echte Farbunterschiede gingen verloren; Nein bricht ab.
+  - Bei `set.HasConfirmedPoints` Rückfrage „Replace the existing curve points?“; Nein bricht ab.
+  - Mit Wartecursor messen. `IOException` führt zu einer Statusmeldung, Kurven bleiben unverändert.
+  - Keine Punkte (alle Listen leer): Statusmeldung, Kurven bleiben unverändert.
+  - Sonst `ReplaceConfirmed`, Status: Anzahl Frames und Punkte je Farbe, bei `FramesUsed < 10` zusätzlich, dass wenige Frames die Messung unsicherer machen. Dann `RefreshCurvesAndPreview`.
+- Keine Fortschrittsanzeige, kein eigener Thread (40 Frames lesen dauert kurz).
+- Nachjustieren: Vorhandene Wege bleiben (Punkt in der Liste wählen oder Vorschau anklicken, Wert ändern, Punkt setzen, in der Liste abhaken und löschen).
+- Damit danach nichts springt: Methode `SyncNewFieldsToCurve()` setzt für jede aktive Zeile mit `OriginalValue > 0` das Feld `NewValue` ohne Ereignisse auf `set.ConfirmedCurveValue(...)`. Aufruf nach dem Messen und am Ende von `buttonDeleteStrongPoints_Click`, jeweils vor `RefreshCurvesAndPreview`.
+
+- [ ] **Step 5: Prüfung an echten Dateien, nur lesend**
+
+Wegwerf-Konsolenprojekt im Scratchpad (nicht ins Repo), das den Kern referenziert. Für `D:\DemoSER\2022-04-18-1021_9-U-L-Sun.ser` und `D:\DemoSER\2022-04-18-1008_0-U-L-Sun.ser`: messen, dann 12 andere Frames (Index = (2k+1)·n/24) mit `FrameCorrector` und Dither korrigieren. Ausgeben: Punkte je Farbe, und je Helligkeitsband (5 gleich volle Bänder über die hellsten 65 % der Zellen) die Abweichung je Filter in Prozent vom Zellmittel, vorher und nachher. Erwartung: im Hauptbereich der Scheibe unter 0,5 %, vorher bis ca. 8 % bei 8 Bit und 6 % bei 16 Bit. Werte in den Report übernehmen.
+
+- [ ] **Step 6: Bauen, alle Tests, Commit**
+
+`dotnet build` (0 Fehler, 0 Warnungen) und `dotnet test` (alle grün).
+
+```bash
+git add src tests
+git commit -m "feat: Kurven aus der Serie messen"
+```
+
 ### Task 12: Restliche Bedienung
 
 Behebt Fehler 10, 11, 12 und den Oberflächenteil von 14; bindet `.cps` an.
