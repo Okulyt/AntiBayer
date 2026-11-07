@@ -151,4 +151,16 @@ public class PreflightTests
         Assert.Equal(new[] { a }, r.Runnable);
         Assert.Contains(r.Issues, i => i.File == txt && i.Excludes);
     }
+
+    [Fact]
+    public void Preflight_nimmt_Referenz_nicht_aus_ausgeschlossener_Datei()
+    {
+        string dir = TestData.TempDir();
+        string first = MakeSer(dir, "a8.ser", depth: 8);
+        string b = MakeSer(dir, "b16.ser", depth: 16), c = MakeSer(dir, "c16.ser", depth: 16);
+        var r = Preflight.Check(Job(new[] { first, b, c }, Path.Combine(dir, "out"), Set(depth: 16)), Plenty);
+        Assert.Equal(new[] { b, c }, r.Runnable);
+        Assert.Contains(r.Issues, i => i.File == first && i.Excludes);
+        Assert.DoesNotContain(r.Issues, i => i.File == b || i.File == c);
+    }
 }

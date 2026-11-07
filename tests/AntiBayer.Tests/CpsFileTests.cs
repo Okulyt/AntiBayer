@@ -175,4 +175,31 @@ public class CpsAltdateiAnwendungTests
         }
         finally { File.Delete(tmp); }
     }
+
+    [Theory]
+    [InlineData("aufnahme.ser")]
+    [InlineData("bild.tif")]
+    [InlineData("ohne_endung")]
+    [InlineData("werte.cps.txt")]
+    public void Speichern_lehnt_andere_Endung_als_cps_ab(string name)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "AntiBayerTests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, name);
+        File.WriteAllText(path, "Original");
+        var s = new ParameterSet(BayerPattern.RGGB, 8);
+        Assert.Throws<ArgumentException>(() => CpsFile.Save(path, s));
+        Assert.Equal("Original", File.ReadAllText(path));
+        Assert.Single(Directory.GetFiles(dir));
+    }
+
+    [Fact]
+    public void Speichern_nimmt_cps_in_beliebiger_Schreibweise()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "AntiBayerTests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "werte.CPS");
+        CpsFile.Save(path, new ParameterSet(BayerPattern.RGGB, 8));
+        Assert.True(File.Exists(path));
+    }
 }

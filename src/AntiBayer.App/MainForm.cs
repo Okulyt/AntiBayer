@@ -223,7 +223,18 @@ public partial class MainForm : Form
                 ? $"their bit depth ({set.BitDepth}) differs from this file ({info.BitDepth})"
                 : $"their number of curves does not fit pattern {pattern}";
             note = $"The curves cannot be used, {reason}. A new empty set was created.";
-            MessageBox.Show(this, note, AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // The current curves are discarded on OK; Cancel keeps the open file and its curves.
+            var answer = MessageBox.Show(this,
+                $"The curves cannot be used for this file: {reason}.\n\n"
+                + "OK opens the file with a new empty set and discards the current curves "
+                + "(you can save them first with \"save values\" and cancel now).\n"
+                + "Cancel keeps the current file and curves.",
+                AppTitle, MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (answer != DialogResult.OK)
+            {
+                note = null;
+                return null;
+            }
             return fresh;
         }
 
@@ -301,7 +312,8 @@ public partial class MainForm : Form
         ClearHighlights();
         ApplyRowStates();
         if (crossesNone && hadPoints) statusMessage = "Pattern is now " + wanted + ", the curves were reset.";
-        else if (hadPoints) statusMessage = "Pattern is now " + wanted + ", the curves stay with their filter position.";
+        else if (hadPoints) statusMessage = "Pattern is now " + wanted
+            + ". Curves stay with their colour name; if they were measured under the old pattern, measure again.";
         else statusMessage = "Pattern is now " + wanted + ".";
         RefreshCurvesAndPreview();
     }
@@ -399,6 +411,8 @@ public partial class MainForm : Form
             }
         });
         statusMessage = checkBoxSwapBytes.Checked ? "Bytes swapped for display and curves." : "Byte order as stored.";
+        if (set.HasConfirmedPoints)
+            statusMessage += " The existing points belong to the previous reading; measure them again.";
         ShowFrameData();
     }
 
@@ -1011,10 +1025,18 @@ public partial class MainForm : Form
         }
         finally
         {
-            if (File.Exists(tmp)) File.Delete(tmp);
+            try
+            {
+                if (File.Exists(tmp)) File.Delete(tmp);
+            }
+            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine("Could not remove the temporary file: " + cleanup.Message);
+            }
         }
         Remember(target);
-        SetStatus("Saved " + Path.GetFileName(target));
+        SetStatus("Saved " + Path.GetFileName(target)
+            + (set.HasPreviewPoints ? ". The value not yet set is not part of the saved image." : ""));
     }
 
     // ---- Parameter sets (.cps) ----
@@ -1041,12 +1063,19 @@ public partial class MainForm : Form
         };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
+        // Never write a parameter set over another kind of file (an image or a recording).
+        if (!string.Equals(Path.GetExtension(dialog.FileName), ".cps", StringComparison.OrdinalIgnoreCase))
+        {
+            SetStatus("Not saved: the file name must end in .cps.");
+            return;
+        }
+
         set.Capture = form.Result;
         try
         {
             CpsFile.Save(dialog.FileName, set);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             SetStatus("Could not save the values: " + ex.Message);
             MessageBox.Show(this, ex.Message, "Could not save " + Path.GetFileName(dialog.FileName), MessageBoxButtons.OK, MessageBoxIcon.Warning);

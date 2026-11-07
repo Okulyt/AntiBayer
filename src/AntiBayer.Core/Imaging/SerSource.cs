@@ -91,11 +91,14 @@ public sealed class SerSource : IFrameSource
     internal bool SwapBytes => _swapBytes;
     internal byte[] RawHeader => _rawHeader;
 
-    /// <summary>Copies the original timestamp trailer (if any) to the output stream.</summary>
+    /// <summary>
+    /// Copies everything after the announced frame data unchanged to the output stream: the timestamp trailer,
+    /// an incomplete trailer, extra frames and any bytes after it. Streams in chunks.
+    /// </summary>
     internal void CopyTrailerTo(Stream output)
     {
-        if (!HasTimestampTrailer) return;
-        long remaining = 8L * Header.FrameCount;
+        long remaining = _stream.Length - _trailerOffset;
+        if (remaining <= 0) return;
         _stream.Position = _trailerOffset;
         var chunk = new byte[64 * 1024];
         while (remaining > 0)

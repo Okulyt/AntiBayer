@@ -49,6 +49,9 @@ public static class CpsFile
 
     public static void Save(string path, ParameterSet set)
     {
+        if (!string.Equals(Path.GetExtension(path), ".cps", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("A parameter set can only be saved as a .cps file.", nameof(path));
+
         var capture = new XElement("Capture");
         var c = set.Capture;
         AddText(capture, "Camera", c.Camera);

@@ -191,4 +191,15 @@ public class ParameterSetTests
         set.SetConfirmed(BayerFilter.Green1, new CurvePoint(30, 35));
         Assert.Equal(new CurvePoint(30, 35), set.Confirmed(BayerFilter.Green1).Single());
     }
+
+    [Fact]
+    public void HasPreviewPoints_nur_bei_gesetztem_Vorschaupunkt()
+    {
+        var s = new ParameterSet(BayerPattern.RGGB, 8);
+        Assert.False(s.HasPreviewPoints);
+        s.SetPreview(BayerFilter.Green1, new CurvePoint(50, 60));
+        Assert.True(s.HasPreviewPoints);
+        s.ClearPreview();
+        Assert.False(s.HasPreviewPoints);
+    }
 }

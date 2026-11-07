@@ -160,4 +160,52 @@ public class SerTests
         }
         Assert.Equal(orig, RoundTrip(sample, o));
     }
+
+    private static void AppendBytes(string path, byte[] extra)
+    {
+        using var fs = new FileStream(path, FileMode.Append, FileAccess.Write);
+        fs.Write(extra);
+    }
+
+    [Fact] public void Unvollstaendiger_Zeitstempel_Anhang_bleibt_bytegleich_erhalten()
+    {
+        string d = TestData.TempDir(), p = Path.Combine(d, "a.ser"), o = Path.Combine(d, "b.ser");
+        TestData.WriteSer(p, 4, 4, 8, 8, 5, Px8);
+        using (var fs = new FileStream(p, FileMode.Open)) fs.SetLength(fs.Length - 13); // 27 of 40 trailer bytes
+        var orig = File.ReadAllBytes(p);
+        var res = RoundTrip(p, o);
+        Assert.Equal(orig, res);
+    }
+
+    [Fact] public void Bytes_nach_dem_Anhang_bleiben_bytegleich_erhalten()
+    {
+        string d = TestData.TempDir(), p = Path.Combine(d, "a.ser"), o = Path.Combine(d, "b.ser");
+        TestData.WriteSer(p, 4, 4, 16, 8, 4, Px);
+        AppendBytes(p, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 });
+        var orig = File.ReadAllBytes(p);
+        var res = RoundTrip(p, o);
+        Assert.Equal(orig, res);
+    }
+
+    [Fact] public void Zusaetzliche_Frames_ueber_die_Kopfangabe_hinaus_bleiben_erhalten()
+    {
+        string d = TestData.TempDir(), p = Path.Combine(d, "a.ser"), o = Path.Combine(d, "b.ser");
+        TestData.WriteSer(p, 4, 4, 8, 8, 3, Px8, trailer: false);
+        var extra = new byte[32];
+        for (int i = 0; i < extra.Length; i++) extra[i] = (byte)(200 + i);
+        AppendBytes(p, extra); // two more frames, no trailer
+        var orig = File.ReadAllBytes(p);
+        Assert.Equal(orig, RoundTrip(p, o));
+    }
+
+    [Fact] public void Langer_Rest_ueber_mehrere_Kopierblöcke_bleibt_bytegleich()
+    {
+        string d = TestData.TempDir(), p = Path.Combine(d, "a.ser"), o = Path.Combine(d, "b.ser");
+        TestData.WriteSer(p, 2, 2, 8, 8, 2, Px8);
+        var extra = new byte[300_000];
+        for (int i = 0; i < extra.Length; i++) extra[i] = (byte)(i * 7);
+        AppendBytes(p, extra);
+        var orig = File.ReadAllBytes(p);
+        Assert.Equal(orig, RoundTrip(p, o));
+    }
 }

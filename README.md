@@ -18,7 +18,8 @@ differences of the object are lost. The tool warns when the capture data says `F
 ## How it works
 
 Each Bayer position gets its own tone curve: a piecewise-linear curve through support points, which
-is fixed at black and at the white level. Series output uses dithered rounding, so values between two
+is fixed at the white level. It is fixed at black only as long as you have set no point of your own
+at 0. Series output uses dithered rounding, so values between two
 levels stay correct on average. Original files are only ever read.
 
 ## Workflow
@@ -49,8 +50,8 @@ averages away. Judge the result in the stacker, not by single pixels.
 | TIFF, PNG | Single images in greyscale. |
 | FITS | Primary HDU, `NAXIS=2`, `BITPIX` 8 or 16. Other variants are refused with a message. |
 
-Camera, exposure and gain are read from the SER header, and filter and colour gains from the
-FireCapture `.txt` beside it.
+Camera, exposure and gain stand in the SER header, but the FireCapture `.txt` beside it takes
+precedence field by field; the header only fills gaps. Filter and colour gains come from the `.txt`.
 
 ## Known limits
 

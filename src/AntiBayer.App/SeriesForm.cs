@@ -36,6 +36,14 @@ public partial class SeriesForm : Form
         labelNote.Text = set.HasConfirmedPoints
             ? ""
             : "No curve points confirmed, output equals input.";
+        if (set.HasPreviewPoints)
+        {
+            // The preview point stays out of the output; make that visible without hiding the note above.
+            labelNote.Text = (labelNote.Text.Length > 0 ? labelNote.Text + " " : "")
+                + "The value not yet set is not part of the output.";
+            labelNote.ForeColor = System.Drawing.Color.Firebrick;
+            labelNote.Font = new System.Drawing.Font(labelNote.Font, System.Drawing.FontStyle.Bold);
+        }
         RefreshFileList();
         RunCheck();
     }
@@ -144,7 +152,11 @@ public partial class SeriesForm : Form
 
     private async void buttonStart_Click(object? sender, EventArgs e)
     {
-        if (running || lastCheck is not { Runnable.Count: > 0 } check) return;
+        if (running) return;
+        // A pending delayed check must not leave a stale result behind: check now, with the current inputs.
+        checkTimer.Stop();
+        RunCheck();
+        if (lastCheck is not { Runnable.Count: > 0 } check) return;
 
         var runnable = check.Runnable.ToList();
         var job = MakeJob(runnable, Environment.TickCount);

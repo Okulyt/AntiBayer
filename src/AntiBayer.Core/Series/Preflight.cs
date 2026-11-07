@@ -67,6 +67,13 @@ public static class Preflight
                 issues.Add(new PreflightIssue(file, "The SER file is incomplete and cannot be saved.", true));
                 continue;
             }
+            // The reference comes only from a file that passed the check against the parameter set.
+            if (info.BitDepth != job.Set.BitDepth)
+            {
+                issues.Add(new PreflightIssue(file,
+                    $"The file has {info.BitDepth} bit but the parameter set is for {job.Set.BitDepth} bit.", true));
+                continue;
+            }
             refFormat ??= info.Format;
             if (refDepth == 0) refDepth = info.BitDepth;
             if (info.Format != refFormat)
@@ -77,12 +84,6 @@ public static class Preflight
             if (info.BitDepth != refDepth)
             {
                 issues.Add(new PreflightIssue(file, "A different bit depth than the first file.", true));
-                continue;
-            }
-            if (info.BitDepth != job.Set.BitDepth)
-            {
-                issues.Add(new PreflightIssue(file,
-                    $"The file has {info.BitDepth} bit but the parameter set is for {job.Set.BitDepth} bit.", true));
                 continue;
             }
 
