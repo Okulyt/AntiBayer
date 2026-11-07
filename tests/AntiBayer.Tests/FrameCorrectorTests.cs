@@ -113,4 +113,38 @@ public class FrameCorrectorTests
         Array.Fill(frame, (ushort)100);
         Assert.Equal(0, FrameCorrector.CountChanged(frame, 8, 8, BayerPattern.RGGB, BayerFilter.Green1, t, t));
     }
+
+    private static FrameCorrector OnlyRedLowered()
+    {
+        var tables = new System.Collections.Generic.Dictionary<BayerFilter, CurveTable>();
+        foreach (var f in new[] { BayerFilter.Red, BayerFilter.Green1, BayerFilter.Green2, BayerFilter.Blue })
+            tables[f] = CurveTable.Build(f == BayerFilter.Red ? new[] { new CurvePoint(100, 90) } : Array.Empty<CurvePoint>(), 8, 255);
+        return new FrameCorrector(BayerPattern.RGGB, tables);
+    }
+
+    [Fact]
+    public void Ausschnitt_nutzt_die_Filterposition_im_ganzen_Bild()
+    {
+        var frame = new ushort[8 * 8];
+        Array.Fill(frame, (ushort)100);
+        // Rot liegt bei RGGB auf geraden Koordinaten: (2,2) ist die erste Stelle des Ausschnitts.
+        var even = OnlyRedLowered().ApplyRegion(frame, 8, new PixelRect(2, 2, 2, 2));
+        Assert.Equal(new ushort[] { 90, 100, 100, 100 }, even);
+        // Ein ungerader Beginn (Bild ungerader Breite) darf die Farben nicht vertauschen.
+        var odd = OnlyRedLowered().ApplyRegion(frame, 8, new PixelRect(1, 1, 2, 2));
+        Assert.Equal(new ushort[] { 100, 100, 100, 90 }, odd);
+    }
+
+    [Fact]
+    public void Ausschnitt_entspricht_der_Korrektur_des_ganzen_Bildes()
+    {
+        var frame = new ushort[8 * 8];
+        for (int i = 0; i < frame.Length; i++) frame[i] = (ushort)(60 + i * 2);
+        var whole = new ushort[frame.Length];
+        OnlyRedLowered().Apply(frame, whole, 8, 8, null);
+        var crop = OnlyRedLowered().ApplyRegion(frame, 8, new PixelRect(2, 4, 3, 2));
+        for (int y = 0; y < 2; y++)
+            for (int x = 0; x < 3; x++)
+                Assert.Equal(whole[(4 + y) * 8 + 2 + x], crop[y * 3 + x]);
+    }
 }

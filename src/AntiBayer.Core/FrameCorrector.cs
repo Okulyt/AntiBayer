@@ -40,6 +40,19 @@ public sealed class FrameCorrector
         }
     }
 
+    /// <summary>Rounded mapping of a crop, with the filter positions taken from the whole image; the crop may start on odd coordinates.</summary>
+    public ushort[] ApplyRegion(ReadOnlySpan<ushort> frame, int imageWidth, PixelRect region)
+    {
+        var result = new ushort[region.Width * region.Height];
+        for (int y = 0; y < region.Height; y++)
+            for (int x = 0; x < region.Width; x++)
+            {
+                int ix = region.X + x, iy = region.Y + y;
+                result[y * region.Width + x] = _cell[((iy & 1) << 1) | (ix & 1)].Map(frame[iy * imageWidth + ix]);
+            }
+        return result;
+    }
+
     /// <summary>Number of pixels of this filter position whose mapped value differs between the two tables.</summary>
     public static int CountChanged(ReadOnlySpan<ushort> frame, int width, int height, BayerPattern pattern,
         BayerFilter filter, CurveTable before, CurveTable after)

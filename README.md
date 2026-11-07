@@ -9,6 +9,11 @@ with FireCapture, and usable for other colour sensors.
 - White-light solar recordings through a foil filter.
 - Near infrared with 680 nm and 742 nm filters, where the manual colour-gain balance is never perfect.
 
+The tool is meant for stacks in greyscale. In AutoStakkert 4, one white-light series stacked in
+greyscale kept a strong grid without the tool (Bayer frequency 2.16 on a 0-255 scale) and almost none
+with the measured curves (0.20). Stacked in colour, debayering removed the pattern without the tool
+too, and the curves mainly made the colours neutral.
+
 From about 800 nm the 462C behaves like a monochrome sensor, and the tool is not needed there. UV and
 CaK bandpass recordings may be beyond correction; treat them as an experiment.
 
@@ -31,10 +36,16 @@ levels stay correct on average. Original files are only ever read.
 4. Small dark areas such as sunspots hardly count in step 2. Click on one and use **Measure here** to
    replace the points in the brightness range of that crop.
 5. Adjust by hand if needed. Click a pixel in the preview, which gets a yellow frame; the status line
-   shows its value before and after the curve and how many pixels change with it. Change the value and
+   shows its value before and after the curve and how many pixels change with it. The magnifier below the
+   preview shows the 3x3 Bayer cells around it without a frame, so you can judge the pixel against its
+   neighbours while you change the value; small ticks outside the image point at it. Change the value and
    set the point, or tick points in the list and delete them.
 6. **convert series** writes the corrected series, by default into a subfolder `AntiBayer` beside the
    source. **save values** keeps the curves in a `.cps` file together with the capture data.
+
+Hold **RGB** to see the raw crop in colour, balanced so that a plain area looks grey. Colour fringes at
+sunspots and the limb come from the optics and the atmosphere. They depend on the place, not on the
+brightness, so tone curves cannot remove them.
 
 Curves act on brightness, not on a place in the image: lowering one value lowers all pixels of that
 colour at that brightness. Single pixels that stand out in one frame are mostly noise, which stacking
@@ -55,9 +66,11 @@ precedence field by field; the header only fills gaps. Filter and colour gains c
 
 ## Known limits
 
-- Red and blue can sit a fraction of a pixel off from green; 0.15 to 0.95 pixels for red were measured
-  on two solar series. Tone curves cannot correct this, so at steep edges a pixel can stand against
-  the local gradient.
+- Red and blue can sit a fraction of a pixel off from green, and blue can be less sharp. Up to about
+  0.8 pixels for red were measured on white-light solar series, with the direction differing between
+  days, and almost none on a series that was probably taken through a red or NIR filter. Tone curves
+  cannot correct this, so at steep edges a pixel can stand against the local gradient. A trial
+  correction made no clear visible difference in a greyscale stack; the tool does not include one.
 - Above the last and below the first support point the curve runs straight to the white level and to
   black.
 

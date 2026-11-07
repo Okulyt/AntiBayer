@@ -161,12 +161,20 @@ Der Knopf läuft nur auf Anforderung, ersetzt vorhandene Punkte nur nach Rückfr
 Filter=RGB, weil er echte Farbunterschiede entfernen würde. Beim Klick in die Vorschau beginnt das
 Feld „neu“ beim aktuellen Kurvenwert, damit die erste Änderung nicht springt.
 
+Unter der Vorschau zeigt eine Lupe die 3×3 Bayer-Zellen (6×6 Pixel) um das angeklickte Pixel ohne Rahmen
+und mit der aktuellen Wertänderung; Striche außerhalb des Bildes zeigen auf das Pixel.
+
 Der Knopf „Measure here“ misst Einzelbilder im aktuellen Vorschau-Ausschnitt und ersetzt nur die
 Punkte im Helligkeitsbereich dieses Ausschnitts (Flecken sind für die Gesamtmessung zu klein). Das
 angeklickte Pixel trägt einen Rahmen; die Statuszeile zeigt seinen Wert vor und nach der Kurve und die
 Zahl der Pixel, die sich mitändern. Eine Verschiebung von Rot und Blau ist bewusst nicht enthalten:
 Gemessen wurden 0,15–0,95 Pixel Versatz bei Rot, ganze Schritte (2 Pixel) verschlechtern die Passung
-an den beiden Prüfserien. Neu bewerten nach Stacker-Ergebnis und Serien bei tiefer Sonne.
+an den beiden Prüfserien. Am 2026-11-07 erneut erprobt, mit einer Korrektur um Bruchteile eines Pixels in Testserien außerhalb
+des Programms, in AutoStakkert 4 an `2022-04-23-1021_5`. Mono-Stack, Bayer-Frequenz bei 30 %: Original
+2,16, Kurven 0,20, Kurven und Versatz 0,18 (Skala 0–255). Beim Blinken ist zwischen den letzten beiden
+kein fassbarer Unterschied zu sehen. Entscheidung über den Versatz offen bis zum Drizzle-Lauf. Im Farb-Stack
+entfernt das Entbayern von AutoStakkert das Muster weitgehend auch ohne das Werkzeug, RGBAlign gleicht
+dort den Versatz aus.
 
 ## Parametersätze (.cps)
 

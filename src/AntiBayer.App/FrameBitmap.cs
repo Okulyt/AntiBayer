@@ -25,6 +25,19 @@ public static class FrameBitmap
             }
         });
 
+    /// <summary>Colour bitmap from RGB bytes per pixel.</summary>
+    public static Bitmap ToColorBitmap(byte[] rgb, int width, int height) =>
+        Create(width, height, (y, row) =>
+        {
+            int source = 3 * y * width;
+            for (int x = 0; x < width; x++)
+            {
+                row[3 * x] = rgb[source + 3 * x + 2];
+                row[3 * x + 1] = rgb[source + 3 * x + 1];
+                row[3 * x + 2] = rgb[source + 3 * x];
+            }
+        });
+
     /// <summary>
     /// Like <see cref="ToBitmap"/>, but tints the pixels of one filter position in its colour. x and y are
     /// counted from the crop origin, which lies on even image coordinates and so keeps the Bayer phase.

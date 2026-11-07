@@ -67,6 +67,7 @@
             this.radioButtonBayerGBRG = new System.Windows.Forms.RadioButton();
             this.radioButtonBayerBGGR = new System.Windows.Forms.RadioButton();
             this.buttonViewSource = new System.Windows.Forms.Button();
+            this.buttonViewRgb = new System.Windows.Forms.Button();
             this.textBoxImageInfo = new System.Windows.Forms.TextBox();
             this.buttonSetStrongPointBlue = new System.Windows.Forms.Button();
             this.buttonSetStrongPointGreen2 = new System.Windows.Forms.Button();
@@ -81,6 +82,7 @@
             this.Target = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.Preview = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this._pbPreview = new AntiBayer.PictureBoxWithInterpolationMode();
+            this._pbMagnifier = new System.Windows.Forms.PictureBox();
             this.buttonDeleteStrongPoints = new System.Windows.Forms.Button();
             this.buttonMeasureCurves = new System.Windows.Forms.Button();
             this.buttonMeasureHere = new System.Windows.Forms.Button();
@@ -104,6 +106,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.textBoxNewValueBlue)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.textBoxOriginalValueBlue)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._pbPreview)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this._pbMagnifier)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarFrame)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownFrame)).BeginInit();
             this.SuspendLayout();
@@ -583,6 +586,19 @@
             this.buttonViewSource.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseDown);
             this.buttonViewSource.MouseUp += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseUp);
             // 
+            // buttonViewRgb
+            //
+            this.buttonViewRgb.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.buttonViewRgb.Enabled = false;
+            this.buttonViewRgb.Location = new System.Drawing.Point(842, 160);
+            this.buttonViewRgb.Name = "buttonViewRgb";
+            this.buttonViewRgb.Size = new System.Drawing.Size(40, 21);
+            this.buttonViewRgb.TabIndex = 58;
+            this.buttonViewRgb.Text = "RGB";
+            this.buttonViewRgb.UseVisualStyleBackColor = true;
+            this.buttonViewRgb.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonViewRgb_MouseDown);
+            this.buttonViewRgb.MouseUp += new System.Windows.Forms.MouseEventHandler(this.MarkButton_MouseUp);
+            //
             // textBoxImageInfo
             // 
             this.textBoxImageInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
@@ -591,7 +607,7 @@
             this.textBoxImageInfo.Name = "textBoxImageInfo";
             this.textBoxImageInfo.ReadOnly = true;
             this.textBoxImageInfo.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBoxImageInfo.Size = new System.Drawing.Size(548, 160);
+            this.textBoxImageInfo.Size = new System.Drawing.Size(382, 160);
             this.textBoxImageInfo.TabIndex = 40;
             // 
             // buttonSetStrongPointBlue
@@ -718,6 +734,17 @@
             this._pbPreview.MouseClick += new System.Windows.Forms.MouseEventHandler(this._pbPreview_MouseClick);
             this._pbPreview.Paint += new System.Windows.Forms.PaintEventHandler(this._pbPreview_Paint);
             // 
+            // _pbMagnifier
+            //
+            this._pbMagnifier.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this._pbMagnifier.Location = new System.Drawing.Point(400, 505);
+            this._pbMagnifier.Name = "_pbMagnifier";
+            this._pbMagnifier.Size = new System.Drawing.Size(160, 160);
+            this._pbMagnifier.TabIndex = 57;
+            this._pbMagnifier.TabStop = false;
+            this._pbMagnifier.Paint += new System.Windows.Forms.PaintEventHandler(this._pbMagnifier_Paint);
+            this._pbMagnifier.MouseClick += new System.Windows.Forms.MouseEventHandler(this._pbMagnifier_MouseClick);
+            //
             // buttonDeleteStrongPoints
             // 
             this.buttonDeleteStrongPoints.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
@@ -864,6 +891,7 @@
             this.Controls.Add(this.buttonSetStrongPointRed);
             this.Controls.Add(this.textBoxImageInfo);
             this.Controls.Add(this.buttonViewSource);
+            this.Controls.Add(this.buttonViewRgb);
             this.Controls.Add(this.radioButtonBayerBGGR);
             this.Controls.Add(this.radioButtonBayerGBRG);
             this.Controls.Add(this.buttonExit);
@@ -903,6 +931,7 @@
             this.Controls.Add(this._pbHistoRGB);
             this.Controls.Add(this._pbWorkingImage);
             this.Controls.Add(this._pbPreview);
+            this.Controls.Add(this._pbMagnifier);
             this.MinimumSize = new System.Drawing.Size(1120, 730);
             this.Name = "MainForm";
             this.Text = "AntiBayer";
@@ -923,6 +952,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.textBoxNewValueBlue)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.textBoxOriginalValueBlue)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this._pbPreview)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this._pbMagnifier)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarFrame)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownFrame)).EndInit();
             this.ResumeLayout(false);
@@ -933,6 +963,7 @@
         #endregion
 
         private PictureBoxWithInterpolationMode _pbPreview;
+        private System.Windows.Forms.PictureBox _pbMagnifier;
         private System.Windows.Forms.PictureBox _pbWorkingImage;
         private System.Windows.Forms.PictureBox _pbHistoRGB;
         private System.Windows.Forms.PictureBox _pbHistoR;
@@ -972,6 +1003,7 @@
         private System.Windows.Forms.RadioButton radioButtonBayerGBRG;
         private System.Windows.Forms.RadioButton radioButtonBayerBGGR;
         private System.Windows.Forms.Button buttonViewSource;
+        private System.Windows.Forms.Button buttonViewRgb;
         private System.Windows.Forms.TextBox textBoxImageInfo;
         private System.Windows.Forms.Button buttonSetStrongPointBlue;
         private System.Windows.Forms.Button buttonSetStrongPointGreen2;

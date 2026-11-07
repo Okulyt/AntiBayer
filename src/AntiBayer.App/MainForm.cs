@@ -38,6 +38,8 @@ public partial class MainForm : Form
 
     private bool suppressEvents;
     private (int X, int Y)? selectedPixel;
+    private PixelRect magnifierRect;
+    private byte[]? magnifierDisplay;
     private string? pixelInfo;
     private string? statusMessage;
     private string? curveHint;
@@ -164,6 +166,9 @@ public partial class MainForm : Form
             {
                 row.OriginalValue.Maximum = info.WhiteLevel;
                 row.NewValue.Maximum = info.WhiteLevel;
+                // One arrow click is one visible display step; exact values can still be typed.
+                row.OriginalValue.Increment = Math.Max(1, info.WhiteLevel / 255);
+                row.NewValue.Increment = Math.Max(1, info.WhiteLevel / 255);
                 row.OriginalValue.Value = 0;
                 row.NewValue.Value = 0;
             }
@@ -332,6 +337,7 @@ public partial class MainForm : Form
         labelRed.Text = none ? "All" : "Red";
         buttonMeasureCurves.Enabled = Loaded && !none;
         buttonMeasureHere.Enabled = Loaded && !none && previewRect != null;
+        buttonViewRgb.Enabled = Loaded && !none && previewRect != null;
     }
 
     private IEnumerable<Row> ActiveRows() => rows.Where(r => r.OriginalValue.Enabled);
@@ -450,6 +456,7 @@ public partial class MainForm : Form
             SetPreviewBitmap(FrameBitmap.ToBitmap(DisplayMapping.To8Bit(corrected, frameMax), r.Width, r.Height));
             variances = Variances.Compute(corrected, r.Width, r.Height, set.Pattern);
         }
+        UpdateMagnifier(new FrameCorrector(set.Pattern, tables));
         UpdateHistograms(tables);
         textBoxImageInfo.Text = BuildImageInfo(variances);
         pixelInfo = BuildPixelInfo(tables);
@@ -504,10 +511,28 @@ public partial class MainForm : Form
     {
         if (!Loaded || previewRect is not PixelRect r) return;
         var hit = PreviewGeometry.ZoomedClickToPixel(e.X, e.Y, _pbPreview.Width, _pbPreview.Height, r.Width, r.Height);
-        if (hit == null) return;
+        if (hit != null) SelectPixel(r.X + hit.Value.X, r.Y + hit.Value.Y);
+    }
 
+    private void _pbMagnifier_MouseClick(object? sender, MouseEventArgs e)
+    {
+        if (!Loaded || magnifierDisplay == null || previewRect is not PixelRect r) return;
+        if (PreviewGeometry.MagnifierClickToPixel(e.X, e.Y, _pbMagnifier.Width, _pbMagnifier.Height, magnifierRect)
+            is not (int x, int y)) return;
+        // The yellow frame must stay visible, so the selection stays inside the preview crop.
+        if (x < r.X || y < r.Y || x >= r.X + r.Width || y >= r.Y + r.Height)
+        {
+            SetStatus("That pixel lies outside the preview. Click into the overview to move the preview first.");
+            return;
+        }
+        SelectPixel(x, y);
+    }
+
+    /// <summary>Makes an image pixel the selected one: fields, highlight, frame in the preview and magnifier.</summary>
+    private void SelectPixel(int x, int y)
+    {
+        if (!Loaded) return;
         var info = source.Info;
-        int x = r.X + hit.Value.X, y = r.Y + hit.Value.Y;
         var means = BayerGeometry.NeighbourhoodMean(rawFrame, info.Width, info.Height, set.Pattern, x, y);
         WithoutEvents(() =>
         {
@@ -539,6 +564,47 @@ public partial class MainForm : Form
             is not PixelRect box) return;
         using var pen = new Pen(Color.Yellow, 1);
         e.Graphics.DrawRectangle(pen, box.X, box.Y, Math.Max(0, box.Width - 1), Math.Max(0, box.Height - 1));
+    }
+
+    /// <summary>The cells around the clicked pixel, on the same brightness scale as the preview; raw values without a corrector.</summary>
+    private void UpdateMagnifier(FrameCorrector? corrector)
+    {
+        magnifierDisplay = null;
+        if (Loaded && selectedPixel is (int x, int y))
+        {
+            var info = source.Info;
+            magnifierRect = PreviewGeometry.MagnifierRect(x, y, info.Width, info.Height);
+            var values = corrector != null
+                ? corrector.ApplyRegion(rawFrame, info.Width, magnifierRect)
+                : RawCrop(magnifierRect);
+            magnifierDisplay = DisplayMapping.To8Bit(values, frameMax);
+        }
+        _pbMagnifier.Invalidate();
+    }
+
+    /// <summary>Pixels without any frame, so their brightness can be judged. Ticks outside the image point at the clicked pixel.</summary>
+    private void _pbMagnifier_Paint(object? sender, PaintEventArgs e)
+    {
+        if (magnifierDisplay is not byte[] display || selectedPixel is not (int sx, int sy)) return;
+        var r = magnifierRect;
+        if (PreviewGeometry.MagnifierLayout(_pbMagnifier.Width, _pbMagnifier.Height, r.Width, r.Height)
+            is not (int left, int top, int size)) return;
+        int right = left + size * r.Width, bottom = top + size * r.Height;
+
+        for (int y = 0; y < r.Height; y++)
+            for (int x = 0; x < r.Width; x++)
+            {
+                int v = display[y * r.Width + x];
+                using var brush = new SolidBrush(Color.FromArgb(v, v, v));
+                e.Graphics.FillRectangle(brush, left + x * size, top + y * size, size, size);
+            }
+
+        int cx = left + (sx - r.X) * size + size / 2, cy = top + (sy - r.Y) * size + size / 2;
+        using var pen = new Pen(SystemColors.ControlText, 2);
+        e.Graphics.DrawLine(pen, cx, top - 6, cx, top - 1);
+        e.Graphics.DrawLine(pen, cx, bottom, cx, bottom + 5);
+        e.Graphics.DrawLine(pen, left - 6, cy, left - 1, cy);
+        e.Graphics.DrawLine(pen, right, cy, right + 5, cy);
     }
 
     /// <summary>Raw value of the clicked pixel and what the preview curve makes of it, plus how many pixels of that filter change.</summary>
@@ -575,12 +641,22 @@ public partial class MainForm : Form
         if (!Loaded || previewRect is not PixelRect r) return;
         byte[] display = DisplayMapping.To8Bit(RawCrop(r), frameMax);
         var row = rows.FirstOrDefault(c => c.Mark == sender);
+        if (row == null) UpdateMagnifier(null); // "Source" shows the raw values there too
         SetPreviewBitmap(row == null
             ? FrameBitmap.ToBitmap(display, r.Width, r.Height)
             : FrameBitmap.ToMarkedBitmap(display, r.Width, r.Height, set.Pattern, FilterOf(row)));
     }
 
     private void MarkButton_MouseUp(object? sender, MouseEventArgs e) => RefreshCurvesAndPreview();
+
+    /// <summary>While held, the preview shows the raw crop in colour: fringes of the optics become visible.</summary>
+    private void buttonViewRgb_MouseDown(object? sender, MouseEventArgs e)
+    {
+        if (!Loaded || set.Pattern == BayerPattern.None || previewRect is not PixelRect r) return;
+        var info = source.Info;
+        SetPreviewBitmap(FrameBitmap.ToColorBitmap(
+            ColorPreview.ToRgb(rawFrame, info.Width, info.Height, set.Pattern, r, frameMax), r.Width, r.Height));
+    }
 
     // ---- Curve points ----
 
@@ -839,32 +915,40 @@ public partial class MainForm : Form
 
     // ---- Window ----
 
-    private const int ColumnTop = 347;
-    private const int ColumnLeft = 566;
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        PlaceHistograms(); // the window has its final scale only now
+    }
 
-    /// <summary>Point list (40 %) and histograms (60 %) share the right-hand column below the button rows.</summary>
+    /// <summary>
+    /// Point list (40 %) and histograms (60 %) share the right-hand column below the button rows.
+    /// The column follows the real controls, because Windows display scaling moves them all.
+    /// </summary>
     private void PlaceHistograms()
     {
+        int columnLeft = _pbWorkingImage.Left;
+        int columnTop = buttonMeasureHere.Bottom + 5;
         int bottom = textBoxStatus.Top - 5;
-        int width = Math.Max(100, textBoxStatus.Right - ColumnLeft - 6);
-        int total = Math.Max(0, bottom - ColumnTop);
+        int width = Math.Max(100, textBoxStatus.Right - columnLeft - 6);
+        int total = Math.Max(0, bottom - columnTop);
         int listHeight = total * 40 / 100;
-        listViewStrongPointList.SetBounds(ColumnLeft, ColumnTop, width, listHeight);
+        listViewStrongPointList.SetBounds(columnLeft, columnTop, width, listHeight);
 
-        int hTop = ColumnTop + listHeight + 5;
+        int hTop = columnTop + listHeight + 5;
         int hHeight4 = Math.Max(0, (bottom - hTop - 15) / 4);
 
         if (checkBoxOnlyRGBHistogram.Checked)
         {
-            _pbHistoRGB.SetBounds(ColumnLeft, hTop, width, Math.Max(0, bottom - hTop));
+            _pbHistoRGB.SetBounds(columnLeft, hTop, width, Math.Max(0, bottom - hTop));
             foreach (var box in new[] { _pbHistoR, _pbHistoG, _pbHistoB }) box.SetBounds(0, 0, 0, 0);
             return;
         }
 
-        _pbHistoRGB.SetBounds(ColumnLeft, hTop, width, hHeight4);
-        _pbHistoR.SetBounds(ColumnLeft, hTop + hHeight4 + 5, width, hHeight4);
-        _pbHistoG.SetBounds(ColumnLeft, hTop + hHeight4 * 2 + 10, width, hHeight4);
-        _pbHistoB.SetBounds(ColumnLeft, hTop + hHeight4 * 3 + 15, width, hHeight4);
+        _pbHistoRGB.SetBounds(columnLeft, hTop, width, hHeight4);
+        _pbHistoR.SetBounds(columnLeft, hTop + hHeight4 + 5, width, hHeight4);
+        _pbHistoG.SetBounds(columnLeft, hTop + hHeight4 * 2 + 10, width, hHeight4);
+        _pbHistoB.SetBounds(columnLeft, hTop + hHeight4 * 3 + 15, width, hHeight4);
     }
 
     // ---- Histograms ----

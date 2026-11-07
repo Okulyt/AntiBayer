@@ -96,4 +96,69 @@ public class PreviewGeometryTests
         Assert.True(last.X + last.Width <= left + dw && last.Y + last.Height <= top + dh);
         Assert.Null(PreviewGeometry.PixelToZoomedRect(iw, 0, bw, bh, iw, ih));
     }
+
+    [Theory]
+    [InlineData(100, 200, 98, 198)]
+    [InlineData(101, 200, 98, 198)]
+    [InlineData(100, 201, 98, 198)]
+    [InlineData(101, 201, 98, 198)]
+    public void Lupe_zeigt_drei_mal_drei_Zellen_mit_der_Zelle_des_Pixels_in_der_Mitte(int x, int y, int left, int top)
+    {
+        Assert.Equal(new PixelRect(left, top, 6, 6), PreviewGeometry.MagnifierRect(x, y, 1000, 1000));
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0, 0)]
+    [InlineData(999, 999, 994, 994)]
+    public void Lupe_bleibt_am_Bildrand_im_Bild(int x, int y, int left, int top)
+    {
+        Assert.Equal(new PixelRect(left, top, 6, 6), PreviewGeometry.MagnifierRect(x, y, 1000, 1000));
+    }
+
+    [Fact]
+    public void Lupe_enthaelt_bei_ungerader_Bildbreite_auch_das_letzte_Pixel()
+    {
+        var r = PreviewGeometry.MagnifierRect(6, 6, 7, 7);
+        Assert.True(r.X + r.Width > 6 && r.Y + r.Height > 6);
+        Assert.True(r.X + r.Width <= 7 && r.Y + r.Height <= 7);
+    }
+
+    [Fact]
+    public void Lupe_wird_bei_sehr_kleinem_Bild_nicht_groesser_als_das_Bild()
+    {
+        Assert.Equal(new PixelRect(0, 0, 4, 2), PreviewGeometry.MagnifierRect(3, 1, 4, 2));
+    }
+
+    [Fact]
+    public void Klick_in_die_Lupe_trifft_jedes_gezeichnete_Pixel()
+    {
+        var region = new PixelRect(98, 198, 6, 6);
+        var layout = PreviewGeometry.MagnifierLayout(187, 185, 6, 6);
+        Assert.NotNull(layout);
+        var (left, top, size) = layout.Value;
+        for (int y = 0; y < 6; y++)
+            for (int x = 0; x < 6; x++)
+            {
+                Assert.Equal((98 + x, 198 + y), PreviewGeometry.MagnifierClickToPixel(left + x * size, top + y * size, 187, 185, region));
+                Assert.Equal((98 + x, 198 + y), PreviewGeometry.MagnifierClickToPixel(left + x * size + size - 1, top + y * size + size - 1, 187, 185, region));
+            }
+    }
+
+    [Fact]
+    public void Klick_neben_das_Lupenbild_trifft_nichts()
+    {
+        var region = new PixelRect(98, 198, 6, 6);
+        var (left, top, size) = PreviewGeometry.MagnifierLayout(187, 185, 6, 6)!.Value;
+        Assert.Null(PreviewGeometry.MagnifierClickToPixel(left - 1, top, 187, 185, region));
+        Assert.Null(PreviewGeometry.MagnifierClickToPixel(left, top - 1, 187, 185, region));
+        Assert.Null(PreviewGeometry.MagnifierClickToPixel(left + 6 * size, top, 187, 185, region));
+        Assert.Null(PreviewGeometry.MagnifierClickToPixel(left, top + 6 * size, 187, 185, region));
+    }
+
+    [Fact]
+    public void Lupe_in_zu_kleiner_Box_trifft_nichts()
+    {
+        Assert.Null(PreviewGeometry.MagnifierLayout(10, 10, 6, 6));
+        Assert.Null(PreviewGeometry.MagnifierClickToPixel(5, 5, 10, 10, new PixelRect(0, 0, 6, 6)));
+    }
 }
