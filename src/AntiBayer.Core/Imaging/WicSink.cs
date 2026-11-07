@@ -98,3 +98,28 @@ public sealed class WicSink : IFrameSink
 
     public void Dispose() => _out.Dispose();
 }
+
+/// <summary>Writes one grey frame as an uncompressed TIFF, 8 or 16 bit.</summary>
+public static class TiffFrameWriter
+{
+    public static void Write(string path, ReadOnlySpan<ushort> frame, int w, int h, int bitDepth)
+    {
+        if (bitDepth != 8 && bitDepth != 16) throw new ArgumentOutOfRangeException(nameof(bitDepth));
+        if (w <= 0 || h <= 0) throw new ArgumentOutOfRangeException(nameof(w));
+        int n = w * h;
+        if (frame.Length < n) throw new ArgumentException("Frame is too small.", nameof(frame));
+
+        var raw = new byte[n * (bitDepth / 8)];
+        if (bitDepth == 8)
+            for (int i = 0; i < n; i++) raw[i] = (byte)frame[i];
+        else
+            for (int i = 0; i < n; i++) { raw[2 * i] = (byte)frame[i]; raw[2 * i + 1] = (byte)(frame[i] >> 8); }
+
+        var format = bitDepth == 8 ? PixelFormats.Gray8 : PixelFormats.Gray16;
+        var bmp = BitmapSource.Create(w, h, 96, 96, format, null, raw, w * (bitDepth / 8));
+        var encoder = new TiffBitmapEncoder { Compression = TiffCompressOption.None };
+        encoder.Frames.Add(BitmapFrame.Create(bmp));
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+        encoder.Save(fs);
+    }
+}

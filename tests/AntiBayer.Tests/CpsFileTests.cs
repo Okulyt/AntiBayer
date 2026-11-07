@@ -147,3 +147,32 @@ public class CpsFileTests
         Assert.ThrowsAny<IOException>(() => CpsFile.Load(Path.Combine(Path.GetTempPath(), "gibt-es-nicht-" + Guid.NewGuid().ToString("N") + ".cps")));
     }
 }
+
+public class CpsAltdateiAnwendungTests
+{
+    [Fact]
+    public void Alte_Datei_laesst_sich_laden_auf_aktuelles_Muster_umstellen_und_neu_speichern()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "old-8bit.cps");
+        var loaded = CpsFile.Load(path);
+        Assert.False(loaded.PatternKnown);
+        Assert.Equal(SetCompatibility.Ok, loaded.CompatibleWith(8, BayerPattern.GRBG));
+
+        loaded.ChangePattern(BayerPattern.GRBG);
+        loaded.PatternKnown = true;
+        loaded.Capture = new CaptureInfo(Camera: "Cam", Note: "nach Aufnahme");
+
+        var tmp = Path.Combine(Path.GetTempPath(), "cps_" + Guid.NewGuid().ToString("N") + ".cps");
+        try
+        {
+            CpsFile.Save(tmp, loaded);
+            var again = CpsFile.Load(tmp);
+            Assert.True(again.PatternKnown);
+            Assert.Equal(BayerPattern.GRBG, again.Pattern);
+            Assert.Equal("nach Aufnahme", again.Capture.Note);
+            foreach (var f in new[] { BayerFilter.Red, BayerFilter.Green1, BayerFilter.Green2, BayerFilter.Blue })
+                Assert.Equal(loaded.Confirmed(f), again.Confirmed(f));
+        }
+        finally { File.Delete(tmp); }
+    }
+}

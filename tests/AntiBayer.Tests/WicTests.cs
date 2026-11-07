@@ -281,3 +281,37 @@ public class WicTests
         Assert.Throws<UnsupportedImageException>(() => ImageFiles.CreateSink(s, p));
     }
 }
+
+public class TiffFrameWriterTests
+{
+    [Theory]
+    [InlineData(8)]
+    [InlineData(16)]
+    public void Tiff_Schreiber_liefert_Rundgang_mit_gleicher_Bittiefe(int bits)
+    {
+        const int w = 7, h = 5;
+        var frame = new ushort[w * h];
+        for (int i = 0; i < frame.Length; i++) frame[i] = (ushort)(bits == 8 ? i * 5 : i * 1777 + 3);
+        var path = Path.Combine(Path.GetTempPath(), "tw_" + Guid.NewGuid().ToString("N") + ".tif");
+        try
+        {
+            TiffFrameWriter.Write(path, frame, w, h, bits);
+            using var src = new WicSource(path);
+            Assert.Equal(bits, src.Info.BitDepth);
+            Assert.Equal(w, src.Info.Width);
+            Assert.Equal(h, src.Info.Height);
+            var back = new ushort[w * h];
+            src.ReadFrame(0, back);
+            Assert.Equal(frame, back);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void Tiff_Schreiber_lehnt_falsche_Groesse_ab()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "tw_" + Guid.NewGuid().ToString("N") + ".tif");
+        Assert.Throws<ArgumentException>(() => TiffFrameWriter.Write(path, new ushort[3], 4, 4, 16));
+        Assert.False(File.Exists(path));
+    }
+}

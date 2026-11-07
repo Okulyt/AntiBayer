@@ -42,6 +42,12 @@ public partial class MainForm : Form
     private string? statusMessage;
     private string? curveHint;
 
+    private readonly string configPath = AppConfig.DefaultPath;
+    private readonly AppConfig config;
+    private Histogram? rawHistogram;
+    private BayerPattern? rawHistogramPattern;
+    private Histogram? correctedHistogram;
+
     public MainForm()
     {
         InitializeComponent();
@@ -56,7 +62,24 @@ public partial class MainForm : Form
             new Row(BayerFilter.Blue, textBoxOriginalValueBlue, textBoxNewValueBlue, labelBlue,
                 buttonMarkB, buttonSetStrongPointBlue, Color.LightBlue, Color.Blue),
         };
+        config = AppConfig.Load(configPath);
+        SelectPatternRadio(config.LastPattern);
+        WireUp();
         PlaceHistograms();
+    }
+
+    private void WireUp()
+    {
+        buttonSave.Click += buttonSave_Click;
+        buttonSaveValues.Click += buttonSaveValues_Click;
+        buttonLoadValues.Click += buttonLoadValues_Click;
+        _pbHistoRGB.Paint += (_, e) => PaintHistogram(_pbHistoRGB, e.Graphics, RgbChannels());
+        _pbHistoR.Paint += (_, e) => PaintHistogram(_pbHistoR, e.Graphics, SingleChannel(BayerFilter.Red, Color.Red));
+        _pbHistoG.Paint += (_, e) => PaintHistogram(_pbHistoG, e.Graphics, GreenChannels());
+        _pbHistoB.Paint += (_, e) => PaintHistogram(_pbHistoB, e.Graphics, SingleChannel(BayerFilter.Blue, Color.Blue));
+        // The list and the histograms share the right-hand column; PlaceHistograms sets their bounds.
+        foreach (Control c in new Control[] { listViewStrongPointList, _pbHistoRGB, _pbHistoR, _pbHistoG, _pbHistoB })
+            c.Anchor = AnchorStyles.Top | AnchorStyles.Left;
     }
 
     [MemberNotNullWhen(true, nameof(source), nameof(set))]
@@ -82,6 +105,7 @@ public partial class MainForm : Form
             Title = "Open image file...",
             Filter = "Images (*.ser;*.tif;*.tiff;*.png)|*.ser;*.tif;*.tiff;*.png|All files (*.*)|*.*",
             ValidateNames = true,
+            InitialDirectory = StartFolder(),
         };
         if (dialog.ShowDialog(this) == DialogResult.OK) LoadFile(dialog.FileName);
     }
@@ -150,6 +174,10 @@ public partial class MainForm : Form
 
         Text = AppTitle + " - " + Path.GetFileName(info.Path);
         buttonConvertFolder.Enabled = true;
+        buttonSave.Enabled = true;
+        buttonSaveValues.Enabled = true;
+        buttonLoadValues.Enabled = true;
+        Remember(path);
         ClearHighlights();
         ApplyRowStates();
         statusMessage = curvesNote ?? "Loaded " + Path.GetFileName(info.Path);
@@ -208,6 +236,7 @@ public partial class MainForm : Form
         }
         set.ClearPreview();
         set.ChangePattern(pattern);
+        set.PatternKnown = true; // the pattern now comes from this file, not from a legacy placeholder
         note = "Curves kept for " + Path.GetFileName(info.Path);
         return set;
     }
@@ -380,6 +409,7 @@ public partial class MainForm : Form
     {
         if (!Loaded) return;
         frameMax = rawFrame.Max();
+        rawHistogramPattern = null; // the raw frame changed: the raw histogram is recomputed once
         var bitmap = FrameBitmap.ToBitmap(DisplayMapping.To8Bit(rawFrame), source.Info.Width, source.Info.Height);
         var old = overviewBitmap;
         overviewBitmap = bitmap;
@@ -406,6 +436,7 @@ public partial class MainForm : Form
             SetPreviewBitmap(FrameBitmap.ToBitmap(DisplayMapping.To8Bit(corrected, frameMax), r.Width, r.Height));
             variances = Variances.Compute(corrected, r.Width, r.Height, set.Pattern);
         }
+        UpdateHistograms(tables);
         textBoxImageInfo.Text = BuildImageInfo(variances);
         pixelInfo = BuildPixelInfo(tables);
         RefreshStatus();
@@ -794,32 +825,295 @@ public partial class MainForm : Form
 
     // ---- Window ----
 
+    private const int ColumnTop = 347;
+    private const int ColumnLeft = 566;
+
+    /// <summary>Point list (40 %) and histograms (60 %) share the right-hand column below the button rows.</summary>
     private void PlaceHistograms()
     {
-        var hTop = _pbWorkingImage.Bottom + 5;
-        var hBottom = textBoxStatus.Top - 5;
-        var hLeft = _pbPreview.Right + 5;
-        var hRight = textBoxStatus.Right;
-        var hHeight = (hBottom - hTop - 15) / 4;
-        var hWidth = hRight - hLeft;
+        int bottom = textBoxStatus.Top - 5;
+        int width = Math.Max(100, textBoxStatus.Right - ColumnLeft - 6);
+        int total = Math.Max(0, bottom - ColumnTop);
+        int listHeight = total * 40 / 100;
+        listViewStrongPointList.SetBounds(ColumnLeft, ColumnTop, width, listHeight);
+
+        int hTop = ColumnTop + listHeight + 5;
+        int hHeight4 = Math.Max(0, (bottom - hTop - 15) / 4);
 
         if (checkBoxOnlyRGBHistogram.Checked)
         {
-            _pbHistoRGB.Location = new Point(hLeft, hTop);
-            _pbHistoRGB.Size = new Size(hWidth, hBottom - hTop - 5);
-            _pbHistoB.Location = _pbHistoG.Location = _pbHistoR.Location = new Point(0, 0);
-            _pbHistoB.Size = _pbHistoG.Size = _pbHistoR.Size = new Size(0, 0);
+            _pbHistoRGB.SetBounds(ColumnLeft, hTop, width, Math.Max(0, bottom - hTop));
+            foreach (var box in new[] { _pbHistoR, _pbHistoG, _pbHistoB }) box.SetBounds(0, 0, 0, 0);
             return;
         }
 
-        _pbHistoRGB.Location = new Point(hLeft, hTop);
-        _pbHistoRGB.Size = new Size(hWidth, hHeight);
-        _pbHistoR.Location = new Point(hLeft, hTop + hHeight + 5);
-        _pbHistoR.Size = new Size(hWidth, hHeight);
-        _pbHistoG.Location = new Point(hLeft, hTop + hHeight * 2 + 10);
-        _pbHistoG.Size = new Size(hWidth, hHeight);
-        _pbHistoB.Location = new Point(hLeft, hTop + hHeight * 3 + 15);
-        _pbHistoB.Size = new Size(hWidth, hHeight);
+        _pbHistoRGB.SetBounds(ColumnLeft, hTop, width, hHeight4);
+        _pbHistoR.SetBounds(ColumnLeft, hTop + hHeight4 + 5, width, hHeight4);
+        _pbHistoG.SetBounds(ColumnLeft, hTop + hHeight4 * 2 + 10, width, hHeight4);
+        _pbHistoB.SetBounds(ColumnLeft, hTop + hHeight4 * 3 + 15, width, hHeight4);
+    }
+
+    // ---- Histograms ----
+
+    /// <summary>Raw histogram only when the frame or the pattern changed; the corrected half on every value change.</summary>
+    private void UpdateHistograms(IReadOnlyDictionary<BayerFilter, CurveTable> previewTables)
+    {
+        if (!Loaded) return;
+        var info = source.Info;
+        if (rawHistogram == null || rawHistogramPattern != set.Pattern)
+        {
+            rawHistogram = Histogram.Compute(rawFrame, info.Width, info.Height, set.Pattern, info.BitDepth);
+            rawHistogramPattern = set.Pattern;
+        }
+        correctedHistogram = rawHistogram.Transform(previewTables);
+        foreach (var box in new[] { _pbHistoRGB, _pbHistoR, _pbHistoG, _pbHistoB }) box.Invalidate();
+    }
+
+    private (BayerFilter Filter, Color Color)[] RgbChannels() => set?.Pattern == BayerPattern.None
+        ? new[] { (BayerFilter.All, Color.Gray) }
+        : new[]
+        {
+            (BayerFilter.Red, Color.Red), (BayerFilter.Green1, Color.LimeGreen),
+            (BayerFilter.Green2, Color.DarkGreen), (BayerFilter.Blue, Color.Blue),
+        };
+
+    private (BayerFilter Filter, Color Color)[] GreenChannels() => set?.Pattern == BayerPattern.None
+        ? Array.Empty<(BayerFilter, Color)>()
+        : new[] { (BayerFilter.Green1, Color.LimeGreen), (BayerFilter.Green2, Color.DarkGreen) };
+
+    private (BayerFilter Filter, Color Color)[] SingleChannel(BayerFilter filter, Color color) =>
+        set?.Pattern == BayerPattern.None ? Array.Empty<(BayerFilter, Color)>() : new[] { (filter, color) };
+
+    /// <summary>Left half: raw classes, right half: corrected classes. All boxes share one scale, G2 included.</summary>
+    private void PaintHistogram(PictureBox box, Graphics g, (BayerFilter Filter, Color Color)[] channels)
+    {
+        g.Clear(Color.White);
+        if (rawHistogram == null || correctedHistogram == null || channels.Length == 0) return;
+
+        int height = box.Height - 1;
+        double scaleX = (box.Width - 15 - channels.Length) / (2.0 * Histogram.Classes);
+        if (scaleX <= 0 || height <= 0) return;
+        long max = Math.Max(rawHistogram.MaxAll, correctedHistogram.MaxAll);
+
+        for (int j = 0; j < channels.Length; j++)
+        {
+            using var brush = new SolidBrush(channels[j].Color);
+            var raw = rawHistogram.Of(channels[j].Filter);
+            var corrected = correctedHistogram.Of(channels[j].Filter);
+            for (int i = 0; i < Histogram.Classes; i++)
+            {
+                DrawBar(g, brush, (float)(i * scaleX + j), Histogram.BarHeight(raw[i], max, height), height);
+                DrawBar(g, brush, (float)((Histogram.Classes + i) * scaleX + j + 15), Histogram.BarHeight(corrected[i], max, height), height);
+            }
+        }
+        float divider = (float)(Histogram.Classes * scaleX + channels.Length + 7);
+        g.DrawLine(Pens.LightGray, divider, 0, divider, height);
+    }
+
+    private static void DrawBar(Graphics g, Brush brush, float x, int barHeight, int height)
+    {
+        if (barHeight > 0) g.FillRectangle(brush, x, height - barHeight, 1, barHeight);
+    }
+
+    // ---- Settings and dialog folders ----
+
+    private string? StartFolder() =>
+        config.LastFolder != null && Directory.Exists(config.LastFolder) ? config.LastFolder : null;
+
+    private void Remember(string path)
+    {
+        var folder = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(folder)) config.LastFolder = folder;
+    }
+
+    private void SaveConfig()
+    {
+        config.LastPattern = set?.Pattern ?? SelectedPattern();
+        try
+        {
+            config.Save(configPath);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine("Could not save the settings: " + e.Message);
+        }
+    }
+
+    // ---- Save image ----
+
+    private void buttonSave_Click(object? sender, EventArgs e)
+    {
+        if (!Loaded) return;
+        var info = source.Info;
+        bool ser = info.Format == ImageFormat.Ser;
+        string stem = textBoxFilenamePrefix.Text + Path.GetFileNameWithoutExtension(info.Path) + textBoxFilenameSuffix.Text
+            + (ser ? "_frame" + (frameIndex + 1) : "");
+        string ext = ser ? ".tif" : Path.GetExtension(info.Path).ToLowerInvariant();
+        string filter = ext == ".png" ? "PNG image (*.png)|*.png" : "TIFF image (*.tif;*.tiff)|*.tif;*.tiff";
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = ser ? "Save the current frame as TIFF..." : "Save the corrected image...",
+            Filter = filter,
+            DefaultExt = ext.TrimStart('.'),
+            AddExtension = true,
+            OverwritePrompt = true,
+            CheckPathExists = true,
+            FileName = stem + ext,
+            InitialDirectory = StartFolder() ?? Path.GetDirectoryName(info.Path),
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        string target = dialog.FileName;
+        string targetExt = Path.GetExtension(target).ToLowerInvariant();
+        bool extOk = ext == ".png" ? targetExt == ".png" : targetExt is ".tif" or ".tiff";
+        if (!extOk)
+        {
+            MessageBox.Show(this, "The file name must end in " + (ext == ".png" ? ".png" : ".tif or .tiff") + ".",
+                AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (string.Equals(Path.GetFullPath(target), Path.GetFullPath(info.Path), StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(this, "The target must not be the source file.", AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        // Confirmed points only: no preview point, no dither.
+        var corrected = new ushort[rawFrame.Length];
+        new FrameCorrector(set.Pattern, set.BuildConfirmedTables(info.WhiteLevel))
+            .Apply(rawFrame, corrected, info.Width, info.Height, null);
+
+        string tmp = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(target))!, "." + Guid.NewGuid().ToString("N") + targetExt);
+        try
+        {
+            if (ser)
+            {
+                TiffFrameWriter.Write(tmp, corrected, info.Width, info.Height, info.BitDepth);
+            }
+            else
+            {
+                using var sink = ImageFiles.CreateSink(source, tmp);
+                sink.WriteFrame(corrected);
+                sink.Complete();
+            }
+            File.Move(tmp, target, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or UnsupportedImageException
+                                       or NotSupportedException or System.Runtime.InteropServices.COMException)
+        {
+            SetStatus("Could not save " + Path.GetFileName(target) + ": " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Could not save " + Path.GetFileName(target), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        finally
+        {
+            if (File.Exists(tmp)) File.Delete(tmp);
+        }
+        Remember(target);
+        SetStatus("Saved " + Path.GetFileName(target));
+    }
+
+    // ---- Parameter sets (.cps) ----
+
+    private void buttonSaveValues_Click(object? sender, EventArgs e)
+    {
+        if (!Loaded) return;
+        var info = source.Info;
+        // The capture data comes from the current file; the note of an earlier set is kept as a starting point.
+        var initial = info.Capture with { Note = info.Capture.Note ?? set.Capture.Note };
+        using var form = new CaptureInfoForm(initial);
+        if (form.ShowDialog(this) != DialogResult.OK) return;
+
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Save curve values...",
+            Filter = "Parameter sets (*.cps)|*.cps",
+            DefaultExt = "cps",
+            AddExtension = true,
+            OverwritePrompt = true,
+            CheckPathExists = true,
+            FileName = Path.GetFileNameWithoutExtension(info.Path) + ".cps",
+            InitialDirectory = StartFolder() ?? Path.GetDirectoryName(info.Path),
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        set.Capture = form.Result;
+        try
+        {
+            CpsFile.Save(dialog.FileName, set);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SetStatus("Could not save the values: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Could not save " + Path.GetFileName(dialog.FileName), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        Remember(dialog.FileName);
+        SetStatus("Saved the values to " + Path.GetFileName(dialog.FileName));
+    }
+
+    private void buttonLoadValues_Click(object? sender, EventArgs e)
+    {
+        if (!Loaded) return;
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Load curve values...",
+            Filter = "Parameter sets (*.cps)|*.cps|All files (*.*)|*.*",
+            CheckFileExists = true,
+            CheckPathExists = true,
+            InitialDirectory = StartFolder(),
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        ParameterSet loaded;
+        try
+        {
+            loaded = CpsFile.Load(dialog.FileName);
+        }
+        catch (Exception ex) when (ex is CpsFormatException or IOException or UnauthorizedAccessException)
+        {
+            ReportLoadFailure(dialog.FileName, ex.Message);
+            return;
+        }
+        Remember(dialog.FileName);
+
+        var info = source.Info;
+        var current = set.Pattern;
+        var compatibility = loaded.CompatibleWith(info.BitDepth, current);
+        if (compatibility is SetCompatibility.BitDepthMismatch or SetCompatibility.CurveCountMismatch)
+        {
+            string reason = compatibility == SetCompatibility.BitDepthMismatch
+                ? $"their bit depth ({loaded.BitDepth}) differs from this file ({info.BitDepth})"
+                : $"their number of curves does not fit pattern {current}";
+            SetStatus("The values were not used, " + reason + ".");
+            MessageBox.Show(this, "The values cannot be used, " + reason + ".", AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        if (compatibility == SetCompatibility.PatternDiffers && MessageBox.Show(this,
+                $"The values were made for pattern {loaded.Pattern}, this file uses {current}. " +
+                "The curves would stay with their filter position. Use them anyway?",
+                AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            return;
+
+        var differences = loaded.Capture.DifferencesTo(info.Capture);
+        if (differences.Count > 0 && MessageBox.Show(this,
+                "The values were measured under different capture settings:\n\n  " + string.Join("\n  ", differences) +
+                "\n\nUse them anyway?", AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            return;
+
+        if (set.HasConfirmedPoints && MessageBox.Show(this, "Replace the existing curve points?",
+                AppTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            return;
+
+        // A legacy file carries only a placeholder pattern; from here on the pattern of the current file counts.
+        loaded.ChangePattern(current);
+        loaded.PatternKnown = true;
+        set = loaded;
+        ClearHighlights();
+        statusMessage = "Loaded the values from " + Path.GetFileName(dialog.FileName);
+        SyncNewFieldsToCurve();
+        RefreshCurvesAndPreview();
     }
 
     private void Form1_Resize(object? sender, EventArgs e)
@@ -855,6 +1149,7 @@ public partial class MainForm : Form
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
+        SaveConfig();
         source?.Dispose();
         source = null;
         _pbWorkingImage.Image = null;
