@@ -64,6 +64,28 @@ public class SeriesRunnerTests
     }
 
     [Fact]
+    public void Serie_wendet_den_Farbversatz_nur_an_wenn_er_eingeschaltet_ist()
+    {
+        string dir = TestData.TempDir();
+        string a = PreflightTests.MakeSer(dir, "a.ser", w: 32, h: 32);
+        string Run(string name, Action<ParameterSet> setup)
+        {
+            var set = DitherSet();
+            setup(set);
+            string o = Path.Combine(dir, name);
+            SeriesRunner.Run(Job(new[] { a }, o, set), new[] { a }, null, CancellationToken.None);
+            return Hash(Path.Combine(o, "BA_a_k.ser"));
+        }
+
+        string plain = Run("plain", _ => { });
+        string measuredOnly = Run("measured", s => s.MeasuredShift = new ColorShift(3, 3, -3, -3));
+        string active = Run("active", s => { s.MeasuredShift = new ColorShift(3, 3, -3, -3); s.ShiftEnabled = true; });
+
+        Assert.Equal(plain, measuredOnly);
+        Assert.NotEqual(plain, active);
+    }
+
+    [Fact]
     public void Serie_erhaelt_Frameanzahl_Kopf_und_Anhang()
     {
         string dir = TestData.TempDir();

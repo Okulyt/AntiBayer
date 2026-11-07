@@ -34,13 +34,17 @@ levels stay correct on average. Original files are only ever read.
    colour. Each colour is compared with the mean of its 2×2 cell.
 3. Click into the overview to see a corrected crop in the preview.
 4. Small dark areas such as sunspots hardly count in step 2. Click on one and use **Measure here** to
-   replace the points in the brightness range of that crop.
+   replace the points in the brightness range of that crop. Points at surface brightness are left out,
+   because there the measurement of the whole series is the better one.
 5. Adjust by hand if needed. Click a pixel in the preview, which gets a yellow frame; the status line
    shows its value before and after the curve and how many pixels change with it. The magnifier below the
    preview shows the 3x3 Bayer cells around it without a frame, so you can judge the pixel against its
    neighbours while you change the value; small ticks outside the image point at it. Change the value and
    set the point, or tick points in the list and delete them.
-6. **convert series** writes the corrected series, by default into a subfolder `AntiBayer` beside the
+6. For stacks in greyscale, click **Measure color shift** after the curves. If red or blue lie at least
+   0.1 pixels off from green, you can tick the correction. It is always off until you tick it, and it is
+   measured for one series, so measure again for another one. See "Color shift" below.
+7. **convert series** writes the corrected series, by default into a subfolder `AntiBayer` beside the
    source. **save values** keeps the curves in a `.cps` file together with the capture data.
 
 Hold **RGB** to see the raw crop in colour, balanced so that a plain area looks grey. Colour fringes at
@@ -50,6 +54,21 @@ brightness, so tone curves cannot remove them.
 Curves act on brightness, not on a place in the image: lowering one value lowers all pixels of that
 colour at that brightness. Single pixels that stand out in one frame are mostly noise, which stacking
 averages away. Judge the result in the stacker, not by single pixels.
+
+## Color shift
+
+At steep edges such as sunspots, red and blue can lie a fraction of a pixel off from green. Up to about
+0.9 pixels were measured on white-light solar series and up to about 0.8 on planets in colour, with the
+direction differing between series. Series through a narrow infrared filter showed at most 0.05 pixels.
+
+In a greyscale stack this leaves a local grid at those edges, and the curves cannot remove it. On one
+white-light series in AutoStakkert 4, stacked in greyscale, the grid at the worst place of a sunspot fell
+from 12.8 with the whole-series curves alone to 0.35 with the crop measurement and this correction (scale
+0-255, sharpened stack), and the image did not move measurably.
+
+Use it for greyscale stacks only. In a colour stack, debayering removes the pattern and RGB alignment in
+the stacker corrects the shift. Green is never changed. The correction takes out the mean shift of the
+series; the part that changes from frame to frame with the seeing stays.
 
 ## Formats
 
@@ -69,8 +88,12 @@ precedence field by field; the header only fills gaps. Filter and colour gains c
 - Red and blue can sit a fraction of a pixel off from green, and blue can be less sharp. Up to about
   0.8 pixels for red were measured on white-light solar series, with the direction differing between
   days, and almost none on a series that was probably taken through a red or NIR filter. Tone curves
-  cannot correct this, so at steep edges a pixel can stand against the local gradient. A trial
-  correction made no clear visible difference in a greyscale stack; the tool does not include one.
+  cannot correct this; see "Color shift". A difference in sharpness is not corrected.
+- The colour balance can drift slightly across the field, by about 0.1 steps per 100 pixels on a 0-255
+  scale. It is not corrected, because it left no clear grid in the tested stacks.
+- On a series with strong image drift, red and blue kept a colour error at brightness levels that are rare
+  in the series, and a grid remained along the limb. The probable cause is that the curves are measured on
+  a mean frame, which the drift blurs. This has not been confirmed or corrected.
 - Above the last and below the first support point the curve runs straight to the white level and to
   black.
 

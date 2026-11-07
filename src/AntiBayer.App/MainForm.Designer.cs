@@ -86,6 +86,8 @@
             this.buttonDeleteStrongPoints = new System.Windows.Forms.Button();
             this.buttonMeasureCurves = new System.Windows.Forms.Button();
             this.buttonMeasureHere = new System.Windows.Forms.Button();
+            this.buttonMeasureShift = new System.Windows.Forms.Button();
+            this.checkBoxColorShift = new System.Windows.Forms.CheckBox();
             this.buttonSaveValues = new System.Windows.Forms.Button();
             this.buttonLoadValues = new System.Windows.Forms.Button();
             this.labelFrame = new System.Windows.Forms.Label();
@@ -854,6 +856,31 @@
             this.numericUpDownFrame.Visible = false;
             this.numericUpDownFrame.ValueChanged += new System.EventHandler(this.numericUpDownFrame_ValueChanged);
             // 
+            // buttonMeasureShift
+            //
+            this.buttonMeasureShift.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.buttonMeasureShift.Enabled = false;
+            this.buttonMeasureShift.Location = new System.Drawing.Point(805, 319);
+            this.buttonMeasureShift.Name = "buttonMeasureShift";
+            this.buttonMeasureShift.Size = new System.Drawing.Size(110, 23);
+            this.buttonMeasureShift.TabIndex = 59;
+            this.buttonMeasureShift.Text = "Measure color shift";
+            this.buttonMeasureShift.UseVisualStyleBackColor = true;
+            this.buttonMeasureShift.Click += new System.EventHandler(this.buttonMeasureShift_Click);
+            //
+            // checkBoxColorShift
+            //
+            this.checkBoxColorShift.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.checkBoxColorShift.AutoSize = true;
+            this.checkBoxColorShift.Enabled = false;
+            this.checkBoxColorShift.Location = new System.Drawing.Point(921, 323);
+            this.checkBoxColorShift.Name = "checkBoxColorShift";
+            this.checkBoxColorShift.Size = new System.Drawing.Size(150, 17);
+            this.checkBoxColorShift.TabIndex = 60;
+            this.checkBoxColorShift.Text = "Correct, for mono stacks";
+            this.checkBoxColorShift.UseVisualStyleBackColor = true;
+            this.checkBoxColorShift.CheckedChanged += new System.EventHandler(this.checkBoxColorShift_CheckedChanged);
+            //
             // checkBoxSwapBytes
             // 
             this.checkBoxSwapBytes.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
@@ -882,6 +909,8 @@
             this.Controls.Add(this.buttonDeleteStrongPoints);
             this.Controls.Add(this.buttonMeasureCurves);
             this.Controls.Add(this.buttonMeasureHere);
+            this.Controls.Add(this.buttonMeasureShift);
+            this.Controls.Add(this.checkBoxColorShift);
             this.Controls.Add(this.listViewStrongPointList);
             this.Controls.Add(this.buttonSetStrongPointRGGB);
             this.Controls.Add(this.labelSet);
@@ -1020,6 +1049,8 @@
         private System.Windows.Forms.Button buttonDeleteStrongPoints;
         private System.Windows.Forms.Button buttonMeasureCurves;
         private System.Windows.Forms.Button buttonMeasureHere;
+        private System.Windows.Forms.Button buttonMeasureShift;
+        private System.Windows.Forms.CheckBox checkBoxColorShift;
         private System.Windows.Forms.Button buttonSaveValues;
         private System.Windows.Forms.Button buttonLoadValues;
         private System.Windows.Forms.Label labelFrame;

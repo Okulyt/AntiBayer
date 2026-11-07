@@ -78,12 +78,21 @@ public static class CpsFile
             curves.Add(curve);
         }
 
-        var doc = new XDocument(new XDeclaration("1.0", "utf-8", null),
-            new XElement(NewRoot,
-                new XAttribute("version", CurrentVersion.ToString(Inv)),
-                new XElement("Pattern", set.Pattern.ToString()),
-                new XElement("BitDepth", set.BitDepth.ToString(Inv)),
-                capture, curves));
+        var root = new XElement(NewRoot,
+            new XAttribute("version", CurrentVersion.ToString(Inv)),
+            new XElement("Pattern", set.Pattern.ToString()),
+            new XElement("BitDepth", set.BitDepth.ToString(Inv)),
+            capture, curves);
+        if (set.MeasuredShift is ColorShift shift)
+        {
+            var element = new XElement("ColorShift", new XAttribute("enabled", set.ShiftEnabled ? "true" : "false"));
+            AddNum(element, "RedX", shift.RedX);
+            AddNum(element, "RedY", shift.RedY);
+            AddNum(element, "BlueX", shift.BlueX);
+            AddNum(element, "BlueY", shift.BlueY);
+            root.Add(element);
+        }
+        var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), root);
 
         var tmp = path + ".tmp";
         try
@@ -142,8 +151,21 @@ public static class CpsFile
                 AddPoint(set, f, p);
             }
         }
+
+        // Optional: files without it simply have no colour shift.
+        var shift = root.Elements().FirstOrDefault(e => e.Name.LocalName == "ColorShift");
+        if (shift != null)
+        {
+            if (pattern == BayerPattern.None)
+                throw new CpsFormatException("A colour shift needs a Bayer pattern.");
+            set.MeasuredShift = new ColorShift(Required(shift, "RedX"), Required(shift, "RedY"), Required(shift, "BlueX"), Required(shift, "BlueY"));
+            set.ShiftEnabled = string.Equals((string?)shift.Attribute("enabled"), "true", StringComparison.OrdinalIgnoreCase);
+        }
         return set;
     }
+
+    private static double Required(XElement parent, string name) =>
+        Num(parent, name) ?? throw new CpsFormatException($"Missing element {name}.");
 
     private static string Child(XElement parent, string name) =>
         parent.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value

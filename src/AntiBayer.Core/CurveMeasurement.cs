@@ -15,6 +15,9 @@ public static class CurveMeasurement
     public const int MinCellsPerPoint = 100;
     public const int RegionBins = 6;
     public const int MinSamplesPerPoint = 200;
+    /// <summary>Points of a local measurement count only below this share of the surface brightness.</summary>
+    public const double SurfaceFraction = 0.9;
+    private const int SurfaceFrames = 5;
 
     private static readonly BayerFilter[] Filters =
         { BayerFilter.Red, BayerFilter.Green1, BayerFilter.Green2, BayerFilter.Blue };
@@ -210,6 +213,63 @@ public static class CurveMeasurement
         }
         EmitPoints(points, white, binCount, binRef, binFilter, MinSamplesPerPoint);
         return Result(points, frames, samples);
+    }
+
+    /// <summary>
+    /// Brightness of the object's surface: the median of everything brighter than half the top value,
+    /// taken from a few frames. The top value is the 99.9th percentile, so hot pixels do not count.
+    /// </summary>
+    public static double SurfaceLevel(IFrameSource source)
+    {
+        var info = source.Info;
+        int frames = Math.Min(info.FrameCount, SurfaceFrames);
+        if (frames <= 0) return 0;
+        var histogram = new long[65536];
+        var buffer = new ushort[info.Width * info.Height];
+        long total = 0;
+        for (int i = 0; i < frames; i++)
+        {
+            source.ReadFrame((int)((long)i * info.FrameCount / frames), buffer);
+            foreach (ushort v in buffer) histogram[v]++;
+            total += buffer.Length;
+        }
+
+        long seen = 0;
+        int top = 0;
+        for (int v = 0; v < histogram.Length; v++)
+        {
+            seen += histogram[v];
+            if (seen * 1000 >= total * 999) { top = v; break; }
+        }
+
+        int from = top / 2;
+        long bright = 0;
+        for (int v = from; v <= top; v++) bright += histogram[v];
+        seen = 0;
+        for (int v = from; v <= top; v++)
+        {
+            seen += histogram[v];
+            if (seen * 2 >= bright) return v;
+        }
+        return top;
+    }
+
+    /// <summary>
+    /// <see cref="MeasureRegion"/> without the points at surface brightness. A dark feature is measured here, but its
+    /// surroundings must not change the curve for the whole surface, where the measurement of the whole series is the better one.
+    /// </summary>
+    public static MeasuredCurves MeasureRegionBelowSurface(IFrameSource source, BayerPattern pattern, PixelRect region)
+    {
+        var measured = MeasureRegion(source, pattern, region);
+        double limit = SurfaceLevel(source) * SurfaceFraction;
+        var kept = new Dictionary<BayerFilter, IReadOnlyList<CurvePoint>>();
+        foreach (var kv in measured.Points)
+        {
+            var below = new List<CurvePoint>();
+            foreach (var p in kv.Value) if (p.New < limit) below.Add(p);
+            kept[kv.Key] = below;
+        }
+        return new MeasuredCurves(kept, measured.FramesUsed, measured.CellsUsed);
     }
 
     private static MeasuredCurves Result(Dictionary<BayerFilter, List<CurvePoint>> points, int frames, int cells)

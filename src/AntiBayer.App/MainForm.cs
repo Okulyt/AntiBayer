@@ -253,6 +253,7 @@ public partial class MainForm : Form
         set.ClearPreview();
         set.ChangePattern(pattern);
         set.PatternKnown = true; // the pattern now comes from this file, not from a legacy placeholder
+        set.ClearShift(); // the colour shift belongs to one series and is measured again
         note = "Curves kept for " + Path.GetFileName(info.Path);
         return set;
     }
@@ -417,6 +418,7 @@ public partial class MainForm : Form
             }
         });
         statusMessage = checkBoxSwapBytes.Checked ? "Bytes swapped for display and curves." : "Byte order as stored.";
+        set.ClearShift();
         if (set.HasConfirmedPoints)
             statusMessage += " The existing points belong to the previous reading; measure them again.";
         ShowFrameData();
@@ -447,28 +449,59 @@ public partial class MainForm : Form
         curveHint = bent.Count > 0 ? "Non-monotonic curve: " + string.Join(", ", bent) : null;
         FillPointList();
 
+        var frameCorrector = new FrameCorrector(set.Pattern, tables);
+        var shifted = ShiftedFrame(frameCorrector);
         IReadOnlyDictionary<BayerFilter, FilterVariance>? variances = null;
         if (previewRect is PixelRect r)
         {
-            var crop = RawCrop(r);
-            var corrected = new ushort[crop.Length];
-            new FrameCorrector(set.Pattern, tables).Apply(crop, corrected, r.Width, r.Height, null);
+            ushort[] corrected;
+            if (shifted != null)
+            {
+                corrected = Crop(shifted, r);
+            }
+            else
+            {
+                var crop = RawCrop(r);
+                corrected = new ushort[crop.Length];
+                frameCorrector.Apply(crop, corrected, r.Width, r.Height, null);
+            }
             SetPreviewBitmap(FrameBitmap.ToBitmap(DisplayMapping.To8Bit(corrected, frameMax), r.Width, r.Height));
             variances = Variances.Compute(corrected, r.Width, r.Height, set.Pattern);
         }
-        UpdateMagnifier(new FrameCorrector(set.Pattern, tables));
+        UpdateMagnifier(frameCorrector, shifted);
         UpdateHistograms(tables);
+        SyncShiftControls();
         textBoxImageInfo.Text = BuildImageInfo(variances);
-        pixelInfo = BuildPixelInfo(tables);
+        pixelInfo = BuildPixelInfo(tables, shifted);
         RefreshStatus();
     }
 
-    private ushort[] RawCrop(PixelRect r)
+    /// <summary>The whole frame after curves and colour shift, or null when the shift is off. It needs the neighbours outside a crop.</summary>
+    private ushort[]? ShiftedFrame(FrameCorrector corrector)
+    {
+        if (!Loaded || set.Pattern == BayerPattern.None || set.ActiveShift is not ColorShift shift) return null;
+        var info = source.Info;
+        var frame = new ushort[rawFrame.Length];
+        corrector.Apply(rawFrame, frame, info.Width, info.Height, null);
+        new ColorShiftCorrector(set.Pattern, info.Width, info.Height, shift, info.WhiteLevel).Apply(rawFrame, frame, null);
+        return frame;
+    }
+
+    private void SyncShiftControls()
+    {
+        buttonMeasureShift.Enabled = Loaded && set.Pattern != BayerPattern.None && set.HasConfirmedPoints;
+        checkBoxColorShift.Enabled = set?.MeasuredShift is { WorthCorrecting: true };
+        WithoutEvents(() => checkBoxColorShift.Checked = set?.ShiftEnabled == true);
+    }
+
+    private ushort[] RawCrop(PixelRect r) => Crop(rawFrame, r);
+
+    private ushort[] Crop(ushort[] frame, PixelRect r)
     {
         var crop = new ushort[r.Width * r.Height];
         int imageWidth = source!.Info.Width;
         for (int y = 0; y < r.Height; y++)
-            Array.Copy(rawFrame, (r.Y + y) * imageWidth + r.X, crop, y * r.Width, r.Width);
+            Array.Copy(frame, (r.Y + y) * imageWidth + r.X, crop, y * r.Width, r.Width);
         return crop;
     }
 
@@ -567,15 +600,15 @@ public partial class MainForm : Form
     }
 
     /// <summary>The cells around the clicked pixel, on the same brightness scale as the preview; raw values without a corrector.</summary>
-    private void UpdateMagnifier(FrameCorrector? corrector)
+    private void UpdateMagnifier(FrameCorrector? corrector, ushort[]? shifted = null)
     {
         magnifierDisplay = null;
         if (Loaded && selectedPixel is (int x, int y))
         {
             var info = source.Info;
             magnifierRect = PreviewGeometry.MagnifierRect(x, y, info.Width, info.Height);
-            var values = corrector != null
-                ? corrector.ApplyRegion(rawFrame, info.Width, magnifierRect)
+            var values = shifted != null ? Crop(shifted, magnifierRect)
+                : corrector != null ? corrector.ApplyRegion(rawFrame, info.Width, magnifierRect)
                 : RawCrop(magnifierRect);
             magnifierDisplay = DisplayMapping.To8Bit(values, frameMax);
         }
@@ -608,7 +641,7 @@ public partial class MainForm : Form
     }
 
     /// <summary>Raw value of the clicked pixel and what the preview curve makes of it, plus how many pixels of that filter change.</summary>
-    private string? BuildPixelInfo(IReadOnlyDictionary<BayerFilter, CurveTable> previewTables)
+    private string? BuildPixelInfo(IReadOnlyDictionary<BayerFilter, CurveTable> previewTables, ushort[]? shifted)
     {
         if (!Loaded || selectedPixel is not (int x, int y)) return null;
         var info = source.Info;
@@ -623,6 +656,7 @@ public partial class MainForm : Form
             _ => "All",
         };
         var text = $"Pixel ({x},{y}) {name}: {raw} -> {previewTables[filter].Map(raw)}";
+        if (shifted != null) text += $", with color shift {shifted[y * info.Width + x]}";
         if (set.PreviewPoint(filter) != null)
         {
             var confirmed = set.BuildConfirmedTables(info.WhiteLevel)[filter];
@@ -743,10 +777,12 @@ public partial class MainForm : Form
             return;
         }
 
+        bool hadShift = set.MeasuredShift != null;
         set.ReplaceConfirmed(measured.Points);
         var counts = rows.Select(FilterOf).Distinct()
             .Select(f => $"{f} {(measured.Points.TryGetValue(f, out var l) ? l.Count : 0)}");
         statusMessage = $"Measured from {measured.FramesUsed} frames: {string.Join(", ", counts)} points.";
+        if (hadShift) statusMessage += " The color shift was reset; measure it again.";
         if (measured.FramesUsed < 10) statusMessage += " Few frames make the measurement less certain.";
         ClearHighlights();
         SyncNewFieldsToCurve();
@@ -763,7 +799,7 @@ public partial class MainForm : Form
         Cursor = Cursors.WaitCursor;
         try
         {
-            measured = CurveMeasurement.MeasureRegion(source, set.Pattern, r);
+            measured = CurveMeasurement.MeasureRegionBelowSurface(source, set.Pattern, r);
         }
         catch (IOException ex)
         {
@@ -778,7 +814,9 @@ public partial class MainForm : Form
 
         if (measured.Points.Values.All(l => l.Count == 0))
         {
-            statusMessage = "No curve points could be measured in the crop (too few usable pixels). The curves are unchanged.";
+            statusMessage = measured.CellsUsed >= CurveMeasurement.MinSamplesPerPoint
+                ? "The crop lies at surface brightness, where the measurement of the whole series counts. The curves are unchanged."
+                : "No curve points could be measured in the crop (too few usable pixels). The curves are unchanged.";
             RefreshStatus();
             return;
         }
@@ -790,6 +828,51 @@ public partial class MainForm : Form
         if (!hadPoints) statusMessage += " Measuring the whole series with \"Measure curves\" first usually makes sense.";
         ClearHighlights();
         SyncNewFieldsToCurve();
+        RefreshCurvesAndPreview();
+    }
+
+    private void buttonMeasureShift_Click(object? sender, EventArgs e)
+    {
+        if (!Loaded || set.Pattern == BayerPattern.None || !set.HasConfirmedPoints) return;
+
+        ColorShift? measured;
+        var oldCursor = Cursor;
+        Cursor = Cursors.WaitCursor;
+        try
+        {
+            measured = ColorShiftMeasurement.Measure(source, set.Pattern, set.BuildConfirmedTables(source.Info.WhiteLevel));
+        }
+        catch (IOException ex)
+        {
+            SetStatus("Could not measure the color shift: " + ex.Message);
+            return;
+        }
+        finally
+        {
+            Cursor = oldCursor;
+        }
+
+        set.MeasuredShift = measured;
+        set.ShiftEnabled = false; // never switched on by itself
+        if (measured == null)
+        {
+            statusMessage = "The frames hold too little structure to measure a color shift.";
+        }
+        else
+        {
+            string values = $"red {Number(measured.RedX)} / {Number(measured.RedY)}, blue {Number(measured.BlueX)} / {Number(measured.BlueY)} pixels";
+            statusMessage = measured.WorthCorrecting
+                ? $"Color shift: {values}. Tick the box to correct it, for stacks in greyscale; in a color stack RGB alignment does this."
+                : $"Color shift: {values}. Too small to need a correction, so this series stays as it is.";
+        }
+        RefreshCurvesAndPreview();
+    }
+
+    private void checkBoxColorShift_CheckedChanged(object? sender, EventArgs e)
+    {
+        if (suppressEvents || !Loaded) return;
+        set.ShiftEnabled = checkBoxColorShift.Checked;
+        statusMessage = set.ShiftEnabled ? "Color shift correction is on." : "Color shift correction is off.";
         RefreshCurvesAndPreview();
     }
 
@@ -1084,6 +1167,8 @@ public partial class MainForm : Form
         var corrected = new ushort[rawFrame.Length];
         new FrameCorrector(set.Pattern, set.BuildConfirmedTables(info.WhiteLevel))
             .Apply(rawFrame, corrected, info.Width, info.Height, null);
+        if (set.ActiveShift is ColorShift activeShift && set.Pattern != BayerPattern.None)
+            new ColorShiftCorrector(set.Pattern, info.Width, info.Height, activeShift, info.WhiteLevel).Apply(rawFrame, corrected, null);
 
         string tmp = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(target))!, "." + Guid.NewGuid().ToString("N") + targetExt);
         try

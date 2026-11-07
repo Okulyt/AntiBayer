@@ -165,16 +165,54 @@ Unter der Vorschau zeigt eine Lupe die 3×3 Bayer-Zellen (6×6 Pixel) um das ang
 und mit der aktuellen Wertänderung; Striche außerhalb des Bildes zeigen auf das Pixel.
 
 Der Knopf „Measure here“ misst Einzelbilder im aktuellen Vorschau-Ausschnitt und ersetzt nur die
-Punkte im Helligkeitsbereich dieses Ausschnitts (Flecken sind für die Gesamtmessung zu klein). Das
-angeklickte Pixel trägt einen Rahmen; die Statuszeile zeigt seinen Wert vor und nach der Kurve und die
-Zahl der Pixel, die sich mitändern. Eine Verschiebung von Rot und Blau ist bewusst nicht enthalten:
-Gemessen wurden 0,15–0,95 Pixel Versatz bei Rot, ganze Schritte (2 Pixel) verschlechtern die Passung
-an den beiden Prüfserien. Am 2026-11-07 erneut erprobt, mit einer Korrektur um Bruchteile eines Pixels in Testserien außerhalb
-des Programms, in AutoStakkert 4 an `2022-04-23-1021_5`. Mono-Stack, Bayer-Frequenz bei 30 %: Original
-2,16, Kurven 0,20, Kurven und Versatz 0,18 (Skala 0–255). Beim Blinken ist zwischen den letzten beiden
-kein fassbarer Unterschied zu sehen. Entscheidung über den Versatz offen bis zum Drizzle-Lauf. Im Farb-Stack
-entfernt das Entbayern von AutoStakkert das Muster weitgehend auch ohne das Werkzeug, RGBAlign gleicht
-dort den Versatz aus.
+Punkte im Helligkeitsbereich dieses Ausschnitts (Flecken sind für die Gesamtmessung zu klein). Punkte ab
+90 % der Flächenhelligkeit bleiben aus: Sie verstellten vorher die Kurve für die ganze Sonnenfläche und
+erzeugten dort Gitter (`1021_5`, Rot auf der Fläche −0,71 statt −0,01). Flächenhelligkeit ist der Median
+aller Werte über der Hälfte des 99,9-%-Werts aus 5 Frames. Das angeklickte Pixel trägt einen Rahmen; die
+Statuszeile zeigt seinen Wert vor und nach der Kurve und die Zahl der Pixel, die sich mitändern.
+
+### Farbversatz
+
+Entschieden am 2026-11-07 nach Stacks in AutoStakkert 4. Mono-Stacks bei 50 %, geschärft, Skala 0–255,
+Gitterstärke in Fenstern von 24 Pixeln:
+
+| `1021_5` | Median | Fleck oben links | rechts unten | Fenster über 1,0 |
+|---|---|---|---|---|
+| Kurven und Ausschnitt, alt | 0,92 | 6,66 | 3,30 | 1005 |
+| nur globale Kurven | 0,29 | 12,81 | 1,44 | 118 |
+| Ausschnitt nur unter der Fläche | 0,29 | 6,15 | 1,45 | 118 |
+| globale Kurven und Versatz | 0,21 | 1,56 | 1,16 | 39 |
+| Ausschnitt unter der Fläche und Versatz | 0,20 | 0,35 | 1,14 | 22 |
+
+`1018_3` bestätigt das (Median 0,83 → 0,17, Fleck 4,08 → 0,69 mit globalen Kurven und Versatz). Das Bild
+verschiebt sich dabei höchstens um etwa 0,07 Pixel, so viel wie zwischen Stacks ohne Versatz.
+
+Der Knopf „Measure color shift“ regressiert auf den Frames nach den Kurven den Unterschied von Rot und
+Blau zu den vier grünen Nachbarn auf Steigung und Krümmung des 5×5 geglätteten Grüns. Ein Kästchen
+schaltet die Korrektur ein. Sie ist immer aus, bis der Nutzer sie einschaltet, und wählbar nur ab 0,1 Pixel.
+Gemessen: Weißlicht-Sonne 0,75–0,88, RGB-Planeten 0,45–0,76, UV-Venus 0,14–0,30, IR und CH4 höchstens
+0,05, `1127_8` 0,02. Der Wert gehört zu einer Serie: neue Kurven, ein anderes Muster oder eine andere Datei
+verwerfen ihn. Grün, übersteuerte Pixel und die äußeren zwei Zeilen bleiben unverändert. Die `.cps` speichert
+den Versatz als optionales Element; ältere Dateien laden mit ausgeschaltetem Versatz.
+
+Der Ablauf im Programm selbst bestätigt das: `1021_5` mit Serie aus dem Programm Median 0,20, Fleck 0,33.
+`2022-04-18-1008_0` (Force Mono, 50 %), Original Median 15,56, Serien des Programms:
+
+| `1008_0` | Median | Flecken (größter Wert) | Sonnenrand (größter Wert) | Fenster über 1,0 |
+|---|---|---|---|---|
+| nur globale Kurven | 0,13 | 2,03 | 7,21 | 511 von 2601 |
+| globale Kurven und Versatz | 0,09 | 0,83 | 7,36 | 459 von 2601 |
+| Ausschnitt unter der Fläche und Versatz | 0,09 | 0,55 | 5,49 | 305 von 2601 |
+
+Das Gitter am Rand sitzt bei 30–70 % der Flächenhelligkeit. Dort bleibt in der Serie mit nur globalen
+Kurven Rot um +2,6 bis +3,4 und Blau um −1,5 bis −2,0 (Skala 0–255) neben Grün, also ein Fehler der Kurve,
+kein Versatz. Vermutete Ursache, nicht geprüft: Die Kurve wird am Mittelbild gemessen, das die große
+Bilddrift dieser Serie verwischt.
+
+Nicht enthalten: Ausgleich der Farbdrift über das Bildfeld (etwa 0,1 Stufen pro 100 Pixel, im Stack kein
+klares Gitter), Messung je Einzelframe, feinere Stützpunkte bei 8 Bit und Schärfeunterschied von Blau.
+Im Farb-Stack entfernt das Entbayern von AutoStakkert das Muster weitgehend auch ohne das Werkzeug,
+RGBAlign gleicht dort den Versatz aus.
 
 ## Parametersätze (.cps)
 

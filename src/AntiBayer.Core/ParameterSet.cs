@@ -17,6 +17,17 @@ public sealed class ParameterSet
     public CaptureInfo Capture { get; set; } = new CaptureInfo();
     /// <summary>False for legacy files that did not store the Bayer pattern; Pattern is then only a placeholder.</summary>
     public bool PatternKnown { get; set; } = true;
+    /// <summary>The colour shift measured for this series, if any.</summary>
+    public ColorShift? MeasuredShift { get; set; }
+    /// <summary>Off by default: the shift is only taken out when the user asks for it.</summary>
+    public bool ShiftEnabled { get; set; }
+    public ColorShift? ActiveShift => ShiftEnabled ? MeasuredShift : null;
+
+    public void ClearShift()
+    {
+        MeasuredShift = null;
+        ShiftEnabled = false;
+    }
 
     public ParameterSet(BayerPattern pattern, int bitDepth)
     {
@@ -59,12 +70,13 @@ public sealed class ParameterSet
 
     public void ClearPreview() => _preview.Clear();
 
-    /// <summary>Discards all confirmed points and the preview, then sets the given points.</summary>
+    /// <summary>Discards all confirmed points, the preview and the colour shift measured on them, then sets the given points.</summary>
     public void ReplaceConfirmed(IReadOnlyDictionary<BayerFilter, IReadOnlyList<CurvePoint>> points)
     {
         foreach (var f in points.Keys) Check(f);
         _confirmed.Clear();
         _preview.Clear();
+        ClearShift();
         foreach (var kv in points)
             foreach (var p in kv.Value)
                 SetConfirmed(kv.Key, p);
@@ -104,6 +116,7 @@ public sealed class ParameterSet
     public void ChangePattern(BayerPattern p)
     {
         if (p == Pattern) return;
+        ClearShift(); // the shift belongs to the positions of red and blue
         if (p == BayerPattern.None || Pattern == BayerPattern.None)
         {
             _confirmed.Clear();

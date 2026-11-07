@@ -99,6 +99,9 @@ public static class SeriesRunner
 
         var corrector = new FrameCorrector(job.Pattern, job.Set.BuildConfirmedTables(info.WhiteLevel));
         var rng = new Random(unchecked(job.Seed + fileIndex));
+        var shiftCorrector = job.Set.ActiveShift is ColorShift shift && job.Pattern != BayerPattern.None
+            ? new ColorShiftCorrector(job.Pattern, info.Width, info.Height, shift, info.WhiteLevel)
+            : null;
 
         string final = OutputNaming.Build(file, job.OutputFolder, job.Prefix, job.Suffix);
         string ext = Path.GetExtension(final);
@@ -117,6 +120,7 @@ public static class SeriesRunner
                     if (token.IsCancellationRequested) return false;
                     source.ReadFrame(f, src);
                     corrector.Apply(src, dst, info.Width, info.Height, rng);
+                    shiftCorrector?.Apply(src, dst, rng);
                     sink.WriteFrame(dst);
                     progress?.Report(new SeriesProgress(fileIndex, fileCount, f + 1, info.FrameCount));
                 }
